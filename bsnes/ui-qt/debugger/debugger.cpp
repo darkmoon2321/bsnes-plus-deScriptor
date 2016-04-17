@@ -195,7 +195,8 @@ void Debugger::modifySystemState(unsigned state) {
   string usagefile = filepath(nall::basename(cartridge.fileName), config().path.data);
   usagefile << "-usage.bin";
   file fp;
-
+  string descriptor_file = filepath(nall::basename(cartridge.fileName), config().path.data);
+  
   if(state == Utility::LoadCartridge) {
     memset(SNES::cpu.cart_usage, 0x00, 1 << 24);
     
@@ -220,6 +221,10 @@ void Debugger::modifySystemState(unsigned state) {
           SNES::cpu.cart_usage[offset] |= SNES::superfx.usage[i];
       }
     }
+    //darkmoon's code below
+    SNES::cpu.descriptor.loadData(descriptor_file,SNES::memory::cartrom.data(),SNES::memory::cartrom.size(),
+         &SNES::cpu.regs.a.w,&SNES::cpu.regs.x.w,&SNES::cpu.regs.y.w,&SNES::cpu.regs.p.m,
+         &SNES::cpu.regs.p.x,&SNES::cpu.regs.db,&SNES::cpu.regs.s.w,&SNES::memory::cartrom,(void *)&SNES::memory::vsprom);
   }
 
   if(state == Utility::UnloadCartridge) {
@@ -230,6 +235,8 @@ void Debugger::modifySystemState(unsigned state) {
       if (SNES::cartridge.has_superfx()) fp.write(SNES::superfx.usage, 1 << 23);
       fp.close();
     }
+    //darkmoon's code below
+    SNES::cpu.descriptor.unloadData();
   }
 }
 
