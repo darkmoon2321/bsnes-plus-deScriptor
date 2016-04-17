@@ -28,6 +28,8 @@ void Utility::updateSystemState() {
     text = "No cartridge loaded";
   } else if(application.power == false) {
     text = "Power off";
+  } else if(SNES::cpu.descriptor.error()) {
+    text = SNES::cpu.descriptor.getMessage();
   } else if(application.pause == true || application.autopause == true) {
     text = "Paused";
   } else if(interface.framesUpdated == true) {
