@@ -1,7 +1,7 @@
 namespace SNES {
   namespace Info {
-    static const char Name[] = "bsnes-plus";
-    static const char Version[] = "073+2";
+    static const char Name[] = "bsnes-plus-deScriptor";
+    static const char Version[] = "a073+2";
     static const unsigned SerializerSignature = 0x43545342; //'BSTC'
     static const unsigned SerializerVersion = 7;
   }
@@ -31,7 +31,6 @@ namespace SNES {
 #include <nall/utility.hpp>
 #include <nall/varint.hpp>
 #include <nall/vector.hpp>
-using namespace nall;
 
 #ifdef DEBUGGER
   #define debugvirtual virtual
@@ -50,39 +49,39 @@ namespace SNES {
   typedef uint32_t uint32;
   typedef uint64_t uint64;
 
-  typedef uint_t< 1> uint1;
-  typedef uint_t< 2> uint2;
-  typedef uint_t< 3> uint3;
-  typedef uint_t< 4> uint4;
-  typedef uint_t< 5> uint5;
-  typedef uint_t< 6> uint6;
-  typedef uint_t< 7> uint7;
+  typedef nall::uint_t< 1> uint1;
+  typedef nall::uint_t< 2> uint2;
+  typedef nall::uint_t< 3> uint3;
+  typedef nall::uint_t< 4> uint4;
+  typedef nall::uint_t< 5> uint5;
+  typedef nall::uint_t< 6> uint6;
+  typedef nall::uint_t< 7> uint7;
 
-  typedef uint_t< 9> uint9;
-  typedef uint_t<10> uint10;
-  typedef uint_t<11> uint11;
-  typedef uint_t<12> uint12;
-  typedef uint_t<13> uint13;
-  typedef uint_t<14> uint14;
-  typedef uint_t<15> uint15;
+  typedef nall::uint_t< 9> uint9;
+  typedef nall::uint_t<10> uint10;
+  typedef nall::uint_t<11> uint11;
+  typedef nall::uint_t<12> uint12;
+  typedef nall::uint_t<13> uint13;
+  typedef nall::uint_t<14> uint14;
+  typedef nall::uint_t<15> uint15;
 
-  typedef uint_t<17> uint17;
-  typedef uint_t<18> uint18;
-  typedef uint_t<19> uint19;
-  typedef uint_t<20> uint20;
-  typedef uint_t<21> uint21;
-  typedef uint_t<22> uint22;
-  typedef uint_t<23> uint23;
-  typedef uint_t<24> uint24;
-  typedef uint_t<25> uint25;
-  typedef uint_t<26> uint26;
-  typedef uint_t<27> uint27;
-  typedef uint_t<28> uint28;
-  typedef uint_t<29> uint29;
-  typedef uint_t<30> uint30;
-  typedef uint_t<31> uint31;
+  typedef nall::uint_t<17> uint17;
+  typedef nall::uint_t<18> uint18;
+  typedef nall::uint_t<19> uint19;
+  typedef nall::uint_t<20> uint20;
+  typedef nall::uint_t<21> uint21;
+  typedef nall::uint_t<22> uint22;
+  typedef nall::uint_t<23> uint23;
+  typedef nall::uint_t<24> uint24;
+  typedef nall::uint_t<25> uint25;
+  typedef nall::uint_t<26> uint26;
+  typedef nall::uint_t<27> uint27;
+  typedef nall::uint_t<28> uint28;
+  typedef nall::uint_t<29> uint29;
+  typedef nall::uint_t<30> uint30;
+  typedef nall::uint_t<31> uint31;
 
-  typedef varuint_t varuint;
+  typedef nall::varuint_t varuint;
 
   struct Processor {
     cothread_t thread;
@@ -95,8 +94,8 @@ namespace SNES {
       frequency = frequency_;
       clock = 0;
     }
-
-    inline void serialize(serializer &s) {
+    
+    inline void serialize(nall::serializer &s) {
       s.integer(frequency);
       s.integer(clock);
     }
@@ -105,10 +104,16 @@ namespace SNES {
   };
 
   struct ChipDebugger {
-    virtual bool property(unsigned id, string &name, string &value) = 0;
+    virtual bool property(unsigned id, nall::string &name, nall::string &value) = 0;
   };
 
   #include <memory/memory.hpp>
+}//end the SNES namespace to avoid conflicts with darkmoon's code
+  //darkmoon's code below
+  #include <cpu/deScriptor.cpp>
+ 
+namespace SNES{ 
+  using namespace nall;
   #include <cpu/core/core.hpp>
   #include <smp/core/core.hpp>
   #include <ppu/counter/counter.hpp>
