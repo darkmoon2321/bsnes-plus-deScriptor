@@ -98,7 +98,7 @@ struct Bus {
     unsigned offset;
   } page[65536];
 
-  void serialize(serializer&);
+  void serialize(nall::serializer&);
 
 private:
   inline void map(unsigned addr, Memory &access, unsigned offset);
