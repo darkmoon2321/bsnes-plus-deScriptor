@@ -17,6 +17,9 @@ bool State::save(unsigned slot) {
     fp.close();
     result = true;
   }
+  
+  //darkmoon's code below
+  SNES::cpu.descriptor.saveState(slot);
 
   if(result) {
     utility.showMessage(string() << "State " << (slot + 1) << " saved.");
@@ -43,7 +46,9 @@ bool State::load(unsigned slot) {
     delete[] data;
     result = SNES::system.unserialize(state);
   }
-
+  //darkmoon's code below
+  SNES::cpu.descriptor.loadState(slot);
+  
   if(result) {
     utility.showMessage(string() << "State " << (slot + 1) << " loaded.");
     resetHistory();
