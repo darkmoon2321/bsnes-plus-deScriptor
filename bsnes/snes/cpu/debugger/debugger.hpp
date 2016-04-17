@@ -19,6 +19,8 @@ public:
   };
   uint8 *usage;
   uint8 *cart_usage;
+  //darkmoon's code below
+  deScriptor descriptor;
 #if defined(ALT_CPU_HPP)
   uint8 mmio_read(unsigned addr);
   void mmio_write(unsigned addr, uint8 data);
