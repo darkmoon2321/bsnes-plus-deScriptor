@@ -88,7 +88,7 @@ private:
            uint8_t ROM_bytes;
            d_string description;
            uint8_t flags;
-           uint32_t RAM_address; //This is set when assembly or script is executed from WRAM
+           uint32_t SNES_address; //This is set when assembly or script is executed from WRAM
            uint32_t * labels;
            uint32_t num_labels;
            uint64_t frequency;
@@ -97,7 +97,7 @@ private:
            {
                 description="";
                 flags=0;
-                RAM_address=0;
+                SNES_address=0;
                 labels=NULL;
                 num_labels=0;
                 frequency=0;
@@ -189,18 +189,18 @@ public:
              for(i=0;i<file_size;i++)
              {
                   binary_in.read((char *)ROM_data[i].flags,sizeof(uint8_t));
-                  binary_in.read((char *)ROM_data[i].RAM_address,sizeof(uint32_t));
+                  binary_in.read((char *)ROM_data[i].SNES_address,sizeof(uint32_t));
                   if(ROM_data[i].flags&SCRIPT || ROM_data[i].flags&SNES65C816)
                   {
                        getline(text_in,buffer);
-                       ROM_data[i].description=buffer.substr(37,TEXTWIDTH-37);
+                       ROM_data[i].description=buffer.substr(29,TEXTWIDTH-29);
                        do
                        {
                             line_start=text_in.tellg();
                             getline(text_in,buffer);
                             if(buffer[0]==' ')
                             {
-                                 ROM_data[i].description+=buffer.substr(37,TEXTWIDTH-37);
+                                 ROM_data[i].description+=buffer.substr(29,TEXTWIDTH-29);
                             }
                             else
                             {
@@ -223,8 +223,6 @@ public:
         d_string f_name=file_base;
         f_name+="-dsc.txt";
         std::ofstream outfile;
-        uint8_t  pc_bank=0;
-        uint16_t pc_address=0x8000;
         outfile.open(f_name.c_str());
         /*std::ofstream outfile2;
         f_name=file_base;
@@ -232,36 +230,21 @@ public:
         outfile2.open(f_name.c_str(),std::ios::binary);*/
         
         //Print results of disassembly to file    
-        outfile<<"Hex     LoROM   RAM     Bytes        Description";
-        for(temp_int=48;temp_int<TEXT_WIDTH;temp_int++) outfile<<' ';
+        outfile<<"Hex     SNES    Bytes        Description";
+        for(temp_int=40;temp_int<TEXT_WIDTH;temp_int++) outfile<<' ';
         outfile<<"|Frequency       |Labels"<<std::endl;
-        pc_bank=0;
-        pc_address=0x8000;
         for(i=0;i<(file_size);i++)
         {
              j=i;
              //outfile2.write((char *)ROM_data[i].flags,sizeof(uint8_t));
-             //outfile2.write((char *)ROM_data[i].RAM_address,sizeof(uint32_t));
+             //outfile2.write((char *)ROM_data[i].SNES_address,sizeof(uint32_t));
              if(!(ROM_data[i].flags&SCRIPT) && !(ROM_data[i].flags&SNES65C816))
              {
-                 pc_address++;
-                 if(pc_address<0x8000)
-                 {
-                      pc_bank++;
-                      pc_address+=0x8000;
-                 }
                  continue;
              }
              outfile<<convert24BitToHexString(i)<<"  ";
-             outfile<<convert24BitToHexString((pc_bank<<16) + pc_address)<<"  ";
-             if(ROM_data[i].RAM_address)
-             {
-                  outfile<<convert24BitToHexString(ROM_data[i].RAM_address)<<"  ";
-             }
-             else
-             {
-                  outfile<<"        ";
-             }
+             outfile<<convert24BitToHexString(ROM_data[i].SNES_address)<<"  ";
+             
              if(ROM_data[i].flags&SCRIPT || ROM_data[i].flags&SNES65C816)
              {
                  outfile<<convertByteToHexString(ROM_data[i].ROM_bytes);
@@ -271,34 +254,16 @@ public:
                       outfile<<convertByteToHexString(ROM_data[i+1].ROM_bytes);
                       outfile<<' ';
                       j++;
-                      pc_address++;
-                      if(pc_address<0x8000)
-                      {
-                           pc_bank++;
-                           pc_address+=0x8000;
-                      }
                       if((i+2)<(file_size) && ROM_data[i+2].flags&OPERAND)
                       {
                            outfile<<convertByteToHexString(ROM_data[i+2].ROM_bytes);
                            outfile<<' ';
                            j++;
-                           pc_address++;
-                           if(pc_address<0x8000)
-                           {
-                                pc_bank++;
-                                pc_address+=0x8000;
-                           }
                            if((i+3)<(file_size) && ROM_data[i+3].flags&OPERAND)
                            {
                                 outfile<<convertByteToHexString(ROM_data[i+3].ROM_bytes);
                                 outfile<<"  ";
                                 j++;
-                                pc_address++;
-                                if(pc_address<0x8000)
-                                {
-                                     pc_bank++;
-                                     pc_address+=0x8000;
-                                }
                            }
                            else
                            {
@@ -314,16 +279,10 @@ public:
                  {
                       outfile<<"          ";
                  }
-                 pc_address++;
-                 if(pc_address<0x8000)
+                 if((ROM_data[i].description).length() > (TEXT_WIDTH-29))
                  {
-                      pc_bank++;
-                      pc_address+=0x8000;
-                 }
-                 if((ROM_data[i].description).length() > (TEXT_WIDTH-37))
-                 {
-                      outfile<<(ROM_data[i].description).substr(0,TEXT_WIDTH-37);
-                      temp_int=TEXT_WIDTH-37;
+                      outfile<<(ROM_data[i].description).substr(0,TEXT_WIDTH-29);
+                      temp_int=TEXT_WIDTH-29;
                       outfile<<"|";
                       outfile<<convert64BitToHexString(ROM_data[i].frequency);
                       outfile<<"|";
@@ -336,15 +295,15 @@ public:
                       while(temp_int<ROM_data[i].description.length())
                       {
                            outfile<<"                                     ";
-                           outfile<<(ROM_data[i].description).substr(temp_int,TEXT_WIDTH-37);
+                           outfile<<(ROM_data[i].description).substr(temp_int,TEXT_WIDTH-29);
                            outfile<<std::endl;
-                           temp_int+=(TEXT_WIDTH-37);
+                           temp_int+=(TEXT_WIDTH-29);
                       }
                  }
                  else
                  {
                       outfile<<ROM_data[i].description;
-                      for(temp_int=ROM_data[i].description.length();temp_int<(TEXT_WIDTH-37);temp_int++)
+                      for(temp_int=ROM_data[i].description.length();temp_int<(TEXT_WIDTH-29);temp_int++)
                       {
                            outfile<<' ';
                       }
@@ -353,16 +312,15 @@ public:
                       outfile<<"|";
                       for(temp_int2=0;temp_int2<ROM_data[i].num_labels;temp_int2++)
                       {
-                           outfile<<"  0x";
+                           outfile<<"0x";
                            outfile<<convert24BitToHexString(ROM_data[i].labels[temp_int2]);
+                           outfile<<"  ";
                       }
                       outfile<<std::endl;
                  }
              }
              i=j;
         }
-        outfile.close();
-        //outfile2.close();
         
         return true;
     }
@@ -404,7 +362,7 @@ public:
          
          if(ROM_data[converted_position].flags) return; //don't record the same position twice.
          
-         if((position&0x7FFFFF)>=0x7E0000) ROM_data[converted_position].RAM_address=position;
+         ROM_data[converted_position].SNES_address=position;
          
          ROM_data[converted_position].flags|=SCRIPT;
          switch(ROM_data[converted_position].ROM_bytes)
@@ -2181,6 +2139,8 @@ public:
                       position++;
                       converted_position=source_tracker.convertPosition(position);
                       ROM_data[converted_position].flags|=SCRIPT;
+                      ROM_data[converted_position].SNES_address=position;
+                      ROM_data[converted_position].frequency++;
                       switch(ROM_data[converted_position].ROM_bytes)
                       {
                            case 0x00:
@@ -2698,7 +2658,7 @@ public:
                       //branch location.  All operands are WORDs.  Op1 defines lowest table index. Op2 defines the
                       //maximum table index. Op3 defines the branch location if max table index is exceeded.
                       ROM_data[converted_position].description="BranchTable[$0A]";
-                      for(int i=ROM_data[converted_position].description.length()+37;i<TEXT_WIDTH;i++)
+                      for(int i=ROM_data[converted_position].description.length()+29;i<TEXT_WIDTH;i++)
                       {
                            ROM_data[converted_position].description+=" ";
                       }
@@ -2731,7 +2691,7 @@ public:
                       ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
                       ROM_data[converted_position].description+="/";
                       ROM_data[converted_position].description+=convertIntToLoROMString(temp_int2);
-                      while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-37))
+                      while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-29))
                       {
                            ROM_data[converted_position].description+=" ";
                       }
@@ -2745,7 +2705,7 @@ public:
                       ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
                       ROM_data[converted_position].description+="/";
                       ROM_data[converted_position].description+=convertIntToLoROMString(temp_int2);
-                      while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-37))
+                      while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-29))
                       {
                            ROM_data[converted_position].description+=" ";
                       }
@@ -2853,7 +2813,7 @@ public:
             case 0xD9:
                  {
                       ROM_data[converted_position].description="Switch($0A)";
-                      while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-37))
+                      while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-29))
                       {
                            ROM_data[converted_position].description+=" ";
                       }
@@ -2887,7 +2847,7 @@ public:
                            
                            ROM_data[temp_int2].addLabel(converted_position);
                            
-                           while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-37))
+                           while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-29))
                            {
                                 ROM_data[converted_position].description+=" ";
                            }
@@ -3008,12 +2968,12 @@ public:
             case 0xE2:
                  {
                       ROM_data[converted_position].description="$0C=(0xFFFF>>(0x10-(BYTE)$0E))<<0xE";
-                      while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-37))
+                      while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-29))
                       {
                            ROM_data[converted_position].description+=" ";
                       }
                       ROM_data[converted_position].description+="$0A=($0A<<0xE)&$0C";
-                      while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-37))
+                      while(ROM_data[converted_position].description.length()%(TEXT_WIDTH-29))
                       {
                            ROM_data[converted_position].description+=" ";
                       }
@@ -3163,6 +3123,7 @@ public:
                       ROM_data[temp_int2].addLabel(converted_position);
                       
                       ROM_data[source_tracker.convertPosition(position+3)].description="Stack Pointer";
+                      ROM_data[source_tracker.convertPosition(position+3)].SNES_address=position+3;
                       if(ROM_data[source_tracker.convertPosition(position+3)].ROM_bytes<0x80)
                       {
                            ROM_data[source_tracker.convertPosition(position+3)].description+="+=0x";
@@ -3193,6 +3154,7 @@ public:
                       ROM_data[source_tracker.convertPosition(position+1)].flags|=SCRIPT;
                       
                       ROM_data[source_tracker.convertPosition(position+1)].description="Stack Pointer";
+                      ROM_data[source_tracker.convertPosition(position+3)].SNES_address=position+3;
                       if(ROM_data[source_tracker.convertPosition(position+1)].ROM_bytes<0x80)
                       {
                            ROM_data[source_tracker.convertPosition(position+1)].description+="+=0x";
@@ -3370,7 +3332,7 @@ public:
        //change this if we enable more complex source-destination tracking.
        if(ROM_data[converted_position].flags) return; //only record for positions that haven't been recorded yet.
        
-       if((position&0x7FFFFF)>=0x7E0000) ROM_data[converted_position].RAM_address=position;
+       ROM_data[converted_position].SNES_address=position;
        
        ROM_data[converted_position].flags|=SNES65C816;
        switch(ROM_data[converted_position].ROM_bytes)
