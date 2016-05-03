@@ -110,7 +110,7 @@ namespace SNES {
   #include <memory/memory.hpp>
 }//end the SNES namespace to avoid conflicts with darkmoon's code
   //darkmoon's code below
-  #include <cpu/deScriptor.cpp>
+  #include <cpu/deScriptor.hpp>
  
 namespace SNES{ 
   using namespace nall;
