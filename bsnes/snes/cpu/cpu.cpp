@@ -1,5 +1,10 @@
 #include <snes.hpp>
 
+#include "BRANCH.cpp"
+#include "OPCODE_STEP.cpp"
+#include "ROM_DATA.cpp"
+#include "deScriptor.cpp"
+
 #define CPU_CPP
 namespace SNES {
 
