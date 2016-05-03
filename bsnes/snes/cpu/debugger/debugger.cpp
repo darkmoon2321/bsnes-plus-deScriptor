@@ -146,7 +146,9 @@ void CPUDebugger::mmio_w2180(uint8 data) {
 }
 #endif
 
-CPUDebugger::CPUDebugger() {
+CPUDebugger::CPUDebugger() :
+     descriptor(regs.a.w,regs.x.w,regs.y.w,regs.s.w,regs.d.w,regs.db,regs.p.m,regs.p.x)
+{
   usage = new uint8[1 << 24]();
   cart_usage = new uint8[1 << 24]();
   opcode_pc = 0x8000;
