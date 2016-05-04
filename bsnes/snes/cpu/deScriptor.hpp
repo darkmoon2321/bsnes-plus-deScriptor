@@ -59,7 +59,6 @@ private:
     OPCODE_STEP step;
     d_string asm_strings[0x100];
     
-    void initializeASMDescriptions();
     void recordScript();
     uint16_t busRead16(uint32_t);
     uint32_t busRead24(uint32_t);
@@ -85,6 +84,8 @@ private:
     void addScriptJump(uint32_t,bool);
     void addEmptyScriptJump(uint32_t);
     void increaseScriptSize(uint16_t,bool);
+    uint8_t getSourceByte(uint32_t);
+    uint16_t getSourceWord(uint32_t);
     
 public:
     //deScriptor();

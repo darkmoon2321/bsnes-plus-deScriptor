@@ -2,7 +2,6 @@
 #define DESCRIPTOR_CPP
 
 #include "deScriptor.hpp"
-#include "asm_descriptions.cpp"
 
 #define busRead8 SNES::bus.read
 #define TEXT_WIDTH 80
@@ -35,7 +34,6 @@ deScriptor::deScriptor(uint16_t &_regsA,uint16_t &_regsX,uint16_t &_regsY,uint16
      error_message="";
      scripts=NULL;
      num_scripts=0;
-     initializeASMDescriptions();
 }
     
 bool deScriptor::error()
@@ -912,7 +910,7 @@ void deScriptor::recordASM(uint32_t position)
              temp_int=busRead16(Stack+1);
              temp_int+=position&0xff0000;
              step.indirect_address=temp_int+1;
-             step.converted_indirect=source_tracker.convertPosition(temp_int);
+             step.converted_indirect=source_tracker.convertPosition(temp_int+1);
              if(step.converted_indirect>=0 && step.converted_address>=0)
              {
                   recordScript(); //step should already have the arguments
@@ -925,7 +923,7 @@ void deScriptor::recordASM(uint32_t position)
              step.converted_address=source_tracker.convertPosition(Stack+1);
              temp_int=busRead24(Stack+1);
              step.indirect_address=temp_int+1;
-             step.converted_indirect=source_tracker.convertPosition(temp_int);
+             step.converted_indirect=source_tracker.convertPosition(temp_int+1);
              if(step.converted_indirect>=0 && step.converted_address>=0)
              {
                   recordScript(); //step should already have the arguments
@@ -939,81 +937,1566 @@ void deScriptor::recordASM(uint32_t position)
    if(ROM_data[converted_position].flags) return; //only record for positions that haven't been recorded yet.
    ROM_data[converted_position].step=step;
    ROM_data[converted_position].flags|=SNES65C816;
-   ROM_data[converted_position].description=asm_strings[step.opcode];
    switch(ROM_data[converted_position].ROM_bytes)
-   {
-        case 0x10:
-        case 0x30:
-        case 0x50:
-        case 0x70:
-        case 0x80:
-        case 0x90:
-        case 0xB0:
-        case 0xD0:
-        case 0xF0:
-             {
-                  temp_int= busRead8(position+1);
-                  ROM_data[converted_position].description+=" (GOTO 0x";
-                  position+=2;
+       {
+            case 0x00:
+                      ROM_data[converted_position].description="BRK $";
+                      //we must be able to convert position to converted_position for each operand...
+                      temp_int=getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x01:
+                      ROM_data[converted_position].description="ORA ($";
+                      temp_int2= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int2);
+                      ROM_data[converted_position].description+=",x)";
+                      break;
+            case 0x02:
+                      ROM_data[converted_position].description="COP $";
+                      temp_int2= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int2);
+                      break;
+            case 0x03:
+                      ROM_data[converted_position].description="ORA $";
+                      temp_int2= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int2);
+                      ROM_data[converted_position].description+=",S";
+                      break;
+            case 0x04:
+                      ROM_data[converted_position].description="TSB $";
+                      temp_int2= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int2);
+                      break;
+            case 0x05:
+                      ROM_data[converted_position].description="ORA $";
+                      temp_int2= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int2);
+                      break;
+            case 0x06:
+                      ROM_data[converted_position].description="ASL $";
+                      temp_int2= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int2);
+                      break;
+            case 0x07:
+                      ROM_data[converted_position].description="ORA [$";
+                      temp_int2= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int2);
+                      ROM_data[converted_position].description+="]";
+                      break;
+            case 0x08:
+                      ROM_data[converted_position].description="PHP";
+                      break;
+            case 0x09:
+                      ROM_data[converted_position].description="ORA #$";
+                      if(MSET)
+                      {
+                           temp_int2= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int2);
+                      
+                      }
+                      else
+                      {
+                          temp_int= getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0x0A:
+                      ROM_data[converted_position].description="ASL A";
+                      break;
+            case 0x0B:
+                      ROM_data[converted_position].description="PHD";
+                      break;
+            case 0x0C:
+                      ROM_data[converted_position].description="TSB $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x0D:
+                      ROM_data[converted_position].description="ORA $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x0E:
+                      ROM_data[converted_position].description="ASL $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x0F:
+                      ROM_data[converted_position].description="ORA $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x10:
+                      ROM_data[converted_position].description="BPL $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      position+=2;
+                      temp_int= (temp_int<0x80 ? (position+temp_int) : (position-(uint8_t)(0-temp_int)) );
+                      temp_int2=source_tracker.convertPosition(temp_int);
+                      if(temp_int2<0) break;
+                      ROM_data[converted_position].description+=" (GOTO 0x";
+                      ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+                      ROM_data[converted_position].description+=")";
+                      ROM_data[temp_int2].addLabel(converted_position);
+                      break;
+            case 0x11:
+                      ROM_data[converted_position].description="ORA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="),y";
+                      break;
+            case 0x12:
+                      ROM_data[converted_position].description="ORA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=")";
+                      break;
+            case 0x13:
+                      ROM_data[converted_position].description="ORA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",S),y";
+                      break;
+            case 0x14:
+                      ROM_data[converted_position].description="TRB $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x15:
+                      ROM_data[converted_position].description="ORA $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x16:
+                      ROM_data[converted_position].description="ASL $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x17:
+                      ROM_data[converted_position].description="ORA [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="],y";
+                      break;
+            case 0x18:
+                      ROM_data[converted_position].description="CLC";
+                      break;
+            case 0x19:
+                      ROM_data[converted_position].description="ORA $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0x1A:
+                      ROM_data[converted_position].description="INC A";
+                      break;
+            case 0x1B:
+                      ROM_data[converted_position].description="TCS";
+                      break;
+            case 0x1C:
+                      ROM_data[converted_position].description="TRB $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x1D:
+                      ROM_data[converted_position].description="ORA $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x1E:
+                      ROM_data[converted_position].description="ASL $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x1F:
+                      ROM_data[converted_position].description="ORA $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x20:
+                      ROM_data[converted_position].description="JSR $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      
+                      temp_int+=(position&0xFF0000);
+                      temp_int=source_tracker.convertPosition(temp_int);
+                      if(temp_int<0) break;
+                      //add branch label
+                      ROM_data[temp_int].addLabel(converted_position);
+                      break;
+            case 0x21:
+                      ROM_data[converted_position].description="AND ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x)";
+                      break;
+            case 0x22:
+                      ROM_data[converted_position].description="JSL $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      temp_int<<=16;
+                      ROM_data[converted_position].description+=":";
+                      temp_int+=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      
+                      temp_int= source_tracker.convertPosition(temp_int);
+                      if(temp_int<0) break;
+                      //add branch label
+                      ROM_data[temp_int].addLabel(converted_position);
+                      break;
+            case 0x23:
+                      ROM_data[converted_position].description="AND $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",S";
+                      break;
+            case 0x24:
+                      ROM_data[converted_position].description="BIT $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x25:
+                      ROM_data[converted_position].description="AND $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x26:
+                      ROM_data[converted_position].description="ROL $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x27:
+                      ROM_data[converted_position].description="AND [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="]";
+                      break;
+            case 0x28:
+                      ROM_data[converted_position].description="PLP";
+                      break;
+            case 0x29:
+                      ROM_data[converted_position].description="AND #$";
+                      if(MSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0x2A:
+                      ROM_data[converted_position].description="ROL A";
+                      break;
+            case 0x2B:
+                      ROM_data[converted_position].description="PLD";
+                      break;
+            case 0x2C:
+                      ROM_data[converted_position].description="BIT $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x2D:
+                      ROM_data[converted_position].description="AND $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x2E:
+                      ROM_data[converted_position].description="ROL $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x2F:
+                      ROM_data[converted_position].description="AND $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x30:
+                      ROM_data[converted_position].description="BMI $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      position+=2;
+                      temp_int= (temp_int<0x80 ? (position+temp_int) : (position-(uint8_t)(0-temp_int)) );
+                      temp_int2=source_tracker.convertPosition(temp_int);
+                      if(temp_int2<0) break;
+                      ROM_data[converted_position].description+=" (GOTO 0x";
+                      ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+                      ROM_data[converted_position].description+=")";
+                      ROM_data[temp_int2].addLabel(converted_position);
+                      break;
+            case 0x31:
+                      ROM_data[converted_position].description="AND ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="),y";
+                      break;
+            case 0x32:
+                      ROM_data[converted_position].description="AND ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=")";
+                      break;
+            case 0x33:
+                      ROM_data[converted_position].description="AND ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s),y";
+                      break;
+            case 0x34:
+                      ROM_data[converted_position].description="BIT $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x35:
+                      ROM_data[converted_position].description="AND $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x36:
+                      ROM_data[converted_position].description="ROL $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x37:
+                      ROM_data[converted_position].description="AND [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="],y";
+                      break;
+            case 0x38:
+                      ROM_data[converted_position].description="SEC";
+                      break;
+            case 0x39:
+                      ROM_data[converted_position].description="AND $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0x3A:
+                      ROM_data[converted_position].description="DEC A";
+                      break;
+            case 0x3B:
+                      ROM_data[converted_position].description="TSC";
+                      break;
+            case 0x3C:
+                      ROM_data[converted_position].description="BIT $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x3D:
+                      ROM_data[converted_position].description="AND $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x3E:
+                      ROM_data[converted_position].description="ROL $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x3F:
+                      ROM_data[converted_position].description="AND $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x40:
+                      ROM_data[converted_position].description="RTI";
+                      break;
+            case 0x41:
+                      ROM_data[converted_position].description="EOR ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x)";
+                      break;
+            case 0x42:
+                      ROM_data[converted_position].description="WDM";
+                      break;
+            case 0x43:
+                      ROM_data[converted_position].description="EOR $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s";
+                      break;
+            case 0x44:
+                      ROM_data[converted_position].description="MVP ";
+                      temp_int= getSourceByte(position+2);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=" ";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+            case 0x45:
+                      ROM_data[converted_position].description="EOR $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x46:
+                      ROM_data[converted_position].description="LSR $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x47:
+                      ROM_data[converted_position].description="EOR [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="]";
+                      break;
+            case 0x48:
+                      ROM_data[converted_position].description="PHA";
+                      break;
+            case 0x49:
+                      ROM_data[converted_position].description="EOR #$";
+                      if(MSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0x4A:
+                      ROM_data[converted_position].description="LSR A";
+                      break;
+            case 0x4B:
+                      ROM_data[converted_position].description="PHK";
+                      break;
+            case 0x4C:
+                      ROM_data[converted_position].description="JMP $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      
+                      temp_int+=(position&0xff0000);
+                      temp_int=source_tracker.convertPosition(temp_int);
+                      //add branch label
+                      if(temp_int<0) break;
+                      ROM_data[temp_int].addLabel(converted_position);
+                      
+                      break;
+            case 0x4D:
+                      ROM_data[converted_position].description="EOR $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x4E:
+                      ROM_data[converted_position].description="LSR $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x4F:
+                      ROM_data[converted_position].description="EOR $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x50:
+                      ROM_data[converted_position].description="BVC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      position+=2;
+                      temp_int= (temp_int<0x80 ? (position+temp_int) : (position-(uint8_t)(0-temp_int)) );
+                      temp_int2=source_tracker.convertPosition(temp_int);
+                      if(temp_int2<0) break;
+                      ROM_data[converted_position].description+=" (GOTO 0x";
+                      ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+                      ROM_data[converted_position].description+=")";
+                      ROM_data[temp_int2].addLabel(converted_position);
+                      break;
+            case 0x51:
+                      ROM_data[converted_position].description="EOR ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="),y";
+                      break;
+            case 0x52:
+                      ROM_data[converted_position].description="EOR ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=")";
+                      break;
+            case 0x53:
+                      ROM_data[converted_position].description="EOR ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s),y";
+                      break;
+            case 0x54:
+                      ROM_data[converted_position].description="MVN ";
+                      temp_int= getSourceByte(position+2);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=" ";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x55:
+                      ROM_data[converted_position].description="EOR $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x56:
+                      ROM_data[converted_position].description="LSR $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x57:
+                      ROM_data[converted_position].description="EOR [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="],y";
+                      break;
+            case 0x58:
+                      ROM_data[converted_position].description="CLI";
+                      break;
+            case 0x59:
+                      ROM_data[converted_position].description="EOR $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0x5A:
+                      ROM_data[converted_position].description="PHY";
+                      break;
+            case 0x5B:
+                      ROM_data[converted_position].description="TCD";
+                      break;
+            case 0x5C:
+                      ROM_data[converted_position].description="JML $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      temp_int<<=16;
+                      ROM_data[converted_position].description+=":";
+                      temp_int+=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      
+                      temp_int=source_tracker.convertPosition(temp_int);
+                      //add label
+                      if(temp_int<0) break;
+                      ROM_data[temp_int].addLabel(converted_position);
+                      break;
+            case 0x5D:
+                      ROM_data[converted_position].description="EOR $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x5E:
+                      ROM_data[converted_position].description="LSR $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x5F:
+                      ROM_data[converted_position].description="EOR $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x60:
+                      ROM_data[converted_position].description="RTS";
+                      //no label for returns?
+                      break;
+            case 0x61:
+                      ROM_data[converted_position].description="ADC ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x)";
+                      break;
+            case 0x62:
+                      ROM_data[converted_position].description="PER $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x63:
+                      ROM_data[converted_position].description="ADC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s";
+                      break;
+            case 0x64:
+                      ROM_data[converted_position].description="STZ $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x65:
+                      ROM_data[converted_position].description="ADC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x66:
+                      ROM_data[converted_position].description="ROR $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x67:
+                      ROM_data[converted_position].description="ADC [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="]";
+                      break;
+            case 0x68:
+                      ROM_data[converted_position].description="PLA";
+                      break;
+            case 0x69:
+                      ROM_data[converted_position].description="ADC #$";
+                      if(MSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0x6A:
+                      ROM_data[converted_position].description="ROR A";
+                      break;
+            case 0x6B:
+                      ROM_data[converted_position].description="RTL";
+                      break;
+            case 0x6C:
+                      ROM_data[converted_position].description="JMP ($";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=")";
+                      break;
+            case 0x6D:
+                      ROM_data[converted_position].description="ADC $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x6E:
+                      ROM_data[converted_position].description="ROR $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x6F:
+                      ROM_data[converted_position].description="ADC $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x70:
+                      ROM_data[converted_position].description="BVS $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      position+=2;
+                      temp_int= (temp_int<0x80 ? (position+temp_int) : (position-(uint8_t)(0-temp_int)) );
+                      temp_int2=source_tracker.convertPosition(temp_int);
+                      if(temp_int2<0) break;
+                      ROM_data[converted_position].description+=" (GOTO 0x";
+                      ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+                      ROM_data[converted_position].description+=")";
+                      ROM_data[temp_int2].addLabel(converted_position);
+                      break;
+            case 0x71:
+                      ROM_data[converted_position].description="ADC ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="),y";
+                      break;
+            case 0x72:
+                      ROM_data[converted_position].description="ADC ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=")";
+                      break;
+            case 0x73:
+                      ROM_data[converted_position].description="ADC ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s),y";
+                      break;
+            case 0x74:
+                      ROM_data[converted_position].description="STZ $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0x75:
+                      ROM_data[converted_position].description="ADC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x76:
+                      ROM_data[converted_position].description="ROR $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x77:
+                      ROM_data[converted_position].description="ADC [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="],y";
+                      break;
+            case 0x78:
+                      ROM_data[converted_position].description="SEI";
+                      break;
+            case 0x79:
+                      ROM_data[converted_position].description="ADC $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0x7A:
+                      ROM_data[converted_position].description="PLY";
+                      break;
+            case 0x7B:
+                      ROM_data[converted_position].description="TDC";
+                      break;
+            case 0x7C:
+                      ROM_data[converted_position].description="JMP ($";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x)";
+                      break;
+            case 0x7D:
+                      ROM_data[converted_position].description="ADC $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x7E:
+                      ROM_data[converted_position].description="ROR $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x7F:
+                      ROM_data[converted_position].description="ADC $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x80:
+                      ROM_data[converted_position].description="BRA $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      position+=2;
+                      temp_int= (temp_int<0x80 ? (position+temp_int) : (position-(uint8_t)(0-temp_int)) );
+                      temp_int2=source_tracker.convertPosition(temp_int);
+                      if(temp_int2<0) break;
+                      ROM_data[converted_position].description+=" (GOTO 0x";
+                      ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+                      ROM_data[converted_position].description+=")";
+                      ROM_data[temp_int2].addLabel(converted_position);
+                      break;
+            case 0x81:
+                      ROM_data[converted_position].description="STA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x)";
+                      break;
+            case 0x82:
+                      ROM_data[converted_position].description="BRL $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      position+=3;
+                      temp_int= (temp_int<0x8000 ? (position+temp_int) : (position-(uint16_t)(0-temp_int)) );
+                      temp_int2= source_tracker.convertPosition(temp_int);
+                      if(temp_int2<0) break;
+                      ROM_data[converted_position].description+=" (GOTO 0x";
+                      ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+                      ROM_data[converted_position].description+=")";
                   
-                  temp_int= (temp_int<0x80 ? (position+temp_int) : (position-(uint8_t)(0-temp_int)) );
-                  temp_int2=source_tracker.convertPosition(temp_int);
-                  ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
-                  ROM_data[converted_position].description+=")";
-                  
-                  if(temp_int2>0) ROM_data[temp_int2].addLabel(converted_position);
-                  break;
-             }
-        case 0x82:
-             {
-                  temp_int=busRead16(position+1);
-                  ROM_data[converted_position].description+=" (GOTO 0x";
-                  position+=3;
-                  
-                  temp_int= (temp_int<0x8000 ? (position+temp_int) : (position-(uint16_t)(0-temp_int)) );
-                  temp_int2= source_tracker.convertPosition(temp_int);
-                  ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
-                  ROM_data[converted_position].description+=")";
-              
-                  if(temp_int2>0) ROM_data[temp_int2].addLabel(converted_position);
-                  break;
-             }
-        
-        case 0x20:
-             {
-                  temp_int=busRead16(position+1);
-                  temp_int+=(position&0xFF0000);
-                  temp_int=source_tracker.convertPosition(temp_int);
-                  //add branch label
-                  if(temp_int>0) ROM_data[temp_int].addLabel(converted_position);
-                  break;
-             }
-        case 0x22:
-             {
-                  temp_int= busRead24(position+1);
-                  temp_int= source_tracker.convertPosition(temp_int);
-                  //add branch label
-                  if(temp_int>0) ROM_data[temp_int].addLabel(converted_position);
-                  break;
-             }
-        case 0x4C: //JMP addr
-             {
-                  temp_int=busRead16(position+1);
-                  temp_int+=(position&0xff0000);
-                  temp_int=source_tracker.convertPosition(temp_int);
-                  //add branch label
-                  if(temp_int>0) ROM_data[temp_int].addLabel(converted_position);
-                  break;
-             }
-        case 0x5C: //JMP long
-             {
-                  temp_int= busRead24(position+1);
-                  temp_int=source_tracker.convertPosition(temp_int);
-                  //add label
-                  if(temp_int>0) ROM_data[temp_int].addLabel(converted_position);
-                  break;
-             }
-        }//end of switch
+                      ROM_data[temp_int2].addLabel(converted_position);
+                      break;
+            case 0x83:
+                      ROM_data[converted_position].description="STA $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s";
+                      break;
+            case 0x84:
+                      ROM_data[converted_position].description="STY $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x85:
+                      ROM_data[converted_position].description="STA $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x86:
+                      ROM_data[converted_position].description="STX $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0x87:
+                      ROM_data[converted_position].description="STA [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="]";
+                      break;
+            case 0x88:
+                      ROM_data[converted_position].description="DEY";
+                      break;
+            case 0x89:
+                      ROM_data[converted_position].description="BIT #$";
+                      if(MSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0x8A:
+                      ROM_data[converted_position].description="TXA";
+                      break;
+            case 0x8B:
+                      ROM_data[converted_position].description="PHB";
+                      break;
+            case 0x8C:
+                      ROM_data[converted_position].description="STY $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x8D:
+                      ROM_data[converted_position].description="STA $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x8E:
+                      ROM_data[converted_position].description="STX $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x8F:
+                      ROM_data[converted_position].description="STA $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x90:
+                      ROM_data[converted_position].description="BCC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      position+=2;
+                      temp_int= (temp_int<0x80 ? (position+temp_int) : (position-(uint8_t)(0-temp_int)) );
+                      temp_int2=source_tracker.convertPosition(temp_int);
+                      if(temp_int2<0) break;
+                      ROM_data[converted_position].description+=" (GOTO 0x";
+                      ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+                      ROM_data[converted_position].description+=")";
+                      ROM_data[temp_int2].addLabel(converted_position);
+                      break;
+            case 0x91:
+                      ROM_data[converted_position].description="STA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="),y";
+                      break;
+            case 0x92:
+                      ROM_data[converted_position].description="STA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=")";
+                      break;
+            case 0x93:
+                      ROM_data[converted_position].description="STA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s),y";
+                      break;
+            case 0x94:
+                      ROM_data[converted_position].description="STY $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x95:
+                      ROM_data[converted_position].description="STA $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x96:
+                      ROM_data[converted_position].description="STX $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0x97:
+                      ROM_data[converted_position].description="STA [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="],y";
+                      break;
+            case 0x98:
+                      ROM_data[converted_position].description="TYA";
+                      break;
+            case 0x99:
+                      ROM_data[converted_position].description="STA $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0x9A:
+                      ROM_data[converted_position].description="TXS";
+                      break;
+            case 0x9B:
+                      ROM_data[converted_position].description="TXY";
+                      break;
+            case 0x9C:
+                      ROM_data[converted_position].description="STZ $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0x9D:
+                      ROM_data[converted_position].description="STA $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x9E:
+                      ROM_data[converted_position].description="STZ $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0x9F:
+                      ROM_data[converted_position].description="STA $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xA0:
+                      ROM_data[converted_position].description="LDY #$";
+                      if(XSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0xA1:
+                      ROM_data[converted_position].description="LDA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x)";
+                      break;
+            case 0xA2:
+                      ROM_data[converted_position].description="LDX #$";
+                      if(XSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0xA3:
+                      ROM_data[converted_position].description="LDA $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s";
+                      break;
+            case 0xA4:
+                      ROM_data[converted_position].description="LDY $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xA5:
+                      ROM_data[converted_position].description="LDA $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xA6:
+                      ROM_data[converted_position].description="LDX $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xA7:
+                      ROM_data[converted_position].description="LDA [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="]";
+                      break;
+            case 0xA8:
+                      ROM_data[converted_position].description="TAY";
+                      break;
+            case 0xA9:
+                      ROM_data[converted_position].description="LDA #$";
+                      if(MSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0xAA:
+                      ROM_data[converted_position].description="TAX";
+                      break;
+            case 0xAB:
+                      ROM_data[converted_position].description="PLB";
+                      break;
+            case 0xAC:
+                      ROM_data[converted_position].description="LDY $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xAD:
+                      ROM_data[converted_position].description="LDA $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xAE:
+                      ROM_data[converted_position].description="LDX $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xAF:
+                      ROM_data[converted_position].description="LDA $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xB0:
+                      ROM_data[converted_position].description="BCS $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      position+=2;
+                      temp_int= (temp_int<0x80 ? (position+temp_int) : (position-(uint8_t)(0-temp_int)) );
+                      temp_int2=source_tracker.convertPosition(temp_int);
+                      if(temp_int2<0) break;
+                      ROM_data[converted_position].description+=" (GOTO 0x";
+                      ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+                      ROM_data[converted_position].description+=")";
+                      ROM_data[temp_int2].addLabel(converted_position);
+                      break;
+            case 0xB1:
+                      ROM_data[converted_position].description="LDA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="),y";
+                      break;
+            case 0xB2:
+                      ROM_data[converted_position].description="LDA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=")";
+                      break;
+            case 0xB3:
+                      ROM_data[converted_position].description="LDA ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s),y";
+                      break;
+            case 0xB4:
+                      ROM_data[converted_position].description="LDY $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xB5:
+                      ROM_data[converted_position].description="LDA $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xB6:
+                      ROM_data[converted_position].description="LDX $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0xB7:
+                      ROM_data[converted_position].description="LDA [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="],y";
+                      break;
+            case 0xB8:
+                      ROM_data[converted_position].description="CLV";
+                      break;
+            case 0xB9:
+                      ROM_data[converted_position].description="LDA $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0xBA:
+                      ROM_data[converted_position].description="TSX";
+                      break;
+            case 0xBB:
+                      ROM_data[converted_position].description="TYX";
+                      break;
+            case 0xBC:
+                      ROM_data[converted_position].description="LDY $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xBD:
+                      ROM_data[converted_position].description="LDA $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xBE:
+                      ROM_data[converted_position].description="LDX $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0xBF:
+                      ROM_data[converted_position].description="LDA $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xC0:
+                      ROM_data[converted_position].description="CPY #$";
+                      if(XSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0xC1:
+                      ROM_data[converted_position].description="CMP ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x)";
+                      break;
+            case 0xC2:
+                      ROM_data[converted_position].description="REP #";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xC3:
+                      ROM_data[converted_position].description="CMP $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s";
+                      break;
+            case 0xC4:
+                      ROM_data[converted_position].description="CPY $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xC5:
+                      ROM_data[converted_position].description="CMP $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xC6:
+                      ROM_data[converted_position].description="DEC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xC7:
+                      ROM_data[converted_position].description="CMP [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="]";
+                      break;
+            case 0xC8:
+                      ROM_data[converted_position].description="INY";
+                      break;
+            case 0xC9:
+                      ROM_data[converted_position].description="CMP #$";
+                      if(MSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0xCA:
+                      ROM_data[converted_position].description="DEX";
+                      break;
+            case 0xCB:
+                      ROM_data[converted_position].description="WAI";
+                      break;
+            case 0xCC:
+                      ROM_data[converted_position].description="CPY $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xCD:
+                      ROM_data[converted_position].description="CMP $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xCE:
+                      ROM_data[converted_position].description="DEC $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xCF:
+                      ROM_data[converted_position].description="CMP $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xD0:
+                      ROM_data[converted_position].description="BNE $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      position+=2;
+                      temp_int= (temp_int<0x80 ? (position+temp_int) : (position-(uint8_t)(0-temp_int)) );
+                      temp_int2=source_tracker.convertPosition(temp_int);
+                      if(temp_int2<0) break;
+                      ROM_data[converted_position].description+=" (GOTO 0x";
+                      ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+                      ROM_data[converted_position].description+=")";
+                      ROM_data[temp_int2].addLabel(converted_position);
+                      break;
+            case 0xD1:
+                      ROM_data[converted_position].description="CMP ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="),y";
+                      break;
+            case 0xD2:
+                      ROM_data[converted_position].description="CMP ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=")";
+                      break;
+            case 0xD3:
+                      ROM_data[converted_position].description="CMP ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s),y";
+                      break;
+            case 0xD4:
+                      ROM_data[converted_position].description="PEI ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=")";
+                      break;
+            case 0xD5:
+                      ROM_data[converted_position].description="CMP $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xD6:
+                      ROM_data[converted_position].description="DEC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xD7:
+                      ROM_data[converted_position].description="CMP [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="],y";
+                      break;
+            case 0xD8:
+                      ROM_data[converted_position].description="CLD";
+                      break;
+            case 0xD9:
+                      ROM_data[converted_position].description="CMP $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0xDA:
+                      ROM_data[converted_position].description="PHX";
+                      break;
+            case 0xDB:
+                      ROM_data[converted_position].description="STP";
+                      break;
+            case 0xDC:
+                      ROM_data[converted_position].description="JMP [$";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+="]";
+                      break;
+            case 0xDD:
+                      ROM_data[converted_position].description="CMP $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xDE:
+                      ROM_data[converted_position].description="DEC $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xDF:
+                      ROM_data[converted_position].description="CMP $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xE0:
+                      ROM_data[converted_position].description="CPX #$";
+                      if(XSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0xE1:
+                      ROM_data[converted_position].description="SBC ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x)";
+                      break;
+            case 0xE2:
+                      ROM_data[converted_position].description="SEP #";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xE3:
+                      ROM_data[converted_position].description="SBC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s";
+                      break;
+            case 0xE4:
+                      ROM_data[converted_position].description="CPX $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xE5:
+                      ROM_data[converted_position].description="SBC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xE6:
+                      ROM_data[converted_position].description="INC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      break;
+            case 0xE7:
+                      ROM_data[converted_position].description="SBC [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="]";
+                      break;
+            case 0xE8:
+                      ROM_data[converted_position].description="INX";
+                      break;
+            case 0xE9:
+                      ROM_data[converted_position].description="SBC #$";
+                      if(MSET)
+                      {
+                           temp_int= getSourceByte(position+1);
+                           ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      }
+                      else
+                      {
+                          temp_int=getSourceWord(position+1);
+                          ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      }
+                      break;
+            case 0xEA:
+                      ROM_data[converted_position].description="NOP";
+                      break;
+            case 0xEB:
+                      ROM_data[converted_position].description="XBA";
+                      break;
+            case 0xEC:
+                      ROM_data[converted_position].description="CPX $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xED:
+                      ROM_data[converted_position].description="SBC $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xEE:
+                      ROM_data[converted_position].description="INC $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xEF:
+                      ROM_data[converted_position].description="SBC $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xF0:
+                      ROM_data[converted_position].description="BEQ $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      position+=2;
+                      temp_int= (temp_int<0x80 ? (position+temp_int) : (position-(uint8_t)(0-temp_int)) );
+                      temp_int2=source_tracker.convertPosition(temp_int);
+                      if(temp_int2<0) break;
+                      ROM_data[converted_position].description+=" (GOTO 0x";
+                      ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+                      ROM_data[converted_position].description+=")";
+                      ROM_data[temp_int2].addLabel(converted_position);
+                      break;
+            case 0xF1:
+                      ROM_data[converted_position].description="SBC ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="),y";
+                      break;
+            case 0xF2:
+                      ROM_data[converted_position].description="SBC ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=")";
+                      break;
+            case 0xF3:
+                      ROM_data[converted_position].description="SBC ($";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",s),y";
+                      break;
+            case 0xF4:
+                      ROM_data[converted_position].description="PEA #$";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      break;
+            case 0xF5:
+                      ROM_data[converted_position].description="SBC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xF6:
+                      ROM_data[converted_position].description="INC $";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xF7:
+                      ROM_data[converted_position].description="SBC [$";
+                      temp_int= getSourceByte(position+1);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+="],y";
+                      break;
+            case 0xF8:
+                      ROM_data[converted_position].description="SED";
+                      break;
+            case 0xF9:
+                      ROM_data[converted_position].description="SBC $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",y";
+                      break;
+            case 0xFA:
+                      ROM_data[converted_position].description="PLX";
+                      break;
+            case 0xFB:
+                      ROM_data[converted_position].description="XCE";
+                      break;
+            case 0xFC:
+                      ROM_data[converted_position].description="JSR ($";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x)";
+                      break;
+            case 0xFD:
+                      ROM_data[converted_position].description="SBC $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xFE:
+                      ROM_data[converted_position].description="INC $";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            case 0xFF:
+                      ROM_data[converted_position].description="SBC $";
+                      temp_int= getSourceByte(position+3);
+                      ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+                      ROM_data[converted_position].description+=":";
+                      temp_int=getSourceWord(position+1);
+                      ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+                      ROM_data[converted_position].description+=",x";
+                      break;
+            }//end of switch
 }//end of recordASM function
 
 char deScriptor::convertToASCII(char c)
@@ -1384,6 +2867,33 @@ void deScriptor::increaseScriptSize(uint16_t script_index,bool bit16)
      delete[] scripts[script_index].commands;
      scripts[script_index].commands=temp;
      scripts[script_index].bit16=true;
+}
+
+uint8_t deScriptor::getSourceByte(uint32_t pos)
+{
+     int32_t source_address= source_tracker.convertPosition(pos);
+     if(source_address<0)
+     {
+          return busRead8(pos);
+     }
+     ROM_data[source_address].flags|=OPERAND;
+     return ROM_data[source_address].ROM_bytes;
+}
+
+uint16_t deScriptor::getSourceWord(uint32_t pos)
+{
+     int32_t source_address= source_tracker.convertPosition(pos);
+     if(source_address<0)
+     {
+          return busRead16(pos);
+     }
+     ROM_data[source_address].flags|=OPERAND;
+     uint16_t result = ROM_data[source_address].ROM_bytes;
+     
+     source_address= source_tracker.convertPosition(pos+1);
+     ROM_data[source_address].flags|=OPERAND;
+     result+= ROM_data[source_address].ROM_bytes << 8;
+     return result;
 }
 /*void deScriptor::deleteScriptJump(uint32_t position)
 {
