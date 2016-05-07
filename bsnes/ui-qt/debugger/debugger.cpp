@@ -222,9 +222,9 @@ void Debugger::modifySystemState(unsigned state) {
       }
     }
     //darkmoon's code below
-        SNES::cpu.descriptor.loadData(descriptor_file,SNES::memory::cartrom.data(),SNES::memory::cartrom.size(),
-         &SNES::memory::cartrom,(void *)&SNES::memory::vsprom,&SNES::memory::wram);
-}
+    SNES::cpu.descriptor.loadData(descriptor_file,SNES::memory::cartrom.data(),SNES::memory::cartrom.size(),
+         (void *)&SNES::memory::cartrom,(void *)&SNES::memory::vsprom,(void *)&SNES::memory::wram,(void *)&SNES::bus.page);
+  }
 
   if(state == Utility::UnloadCartridge) {
     if(config().debugger.cacheUsageToDisk && fp.open(usagefile, file::mode::write)) {
