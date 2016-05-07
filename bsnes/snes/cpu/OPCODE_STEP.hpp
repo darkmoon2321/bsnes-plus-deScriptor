@@ -1,6 +1,8 @@
 #ifndef OPCODE_STEP_H
 #define OPCODE_STEP_H
 
+#include <stdint.h>
+
 struct OPCODE_STEP{
      int32_t program_counter;
      int32_t converted_counter;

@@ -34,6 +34,7 @@ deScriptor::deScriptor(uint16_t &_regsA,uint16_t &_regsX,uint16_t &_regsY,uint16
      error_message="";
      scripts=NULL;
      num_scripts=0;
+     plugin_exists=false;
 }
     
 bool deScriptor::error()
@@ -45,10 +46,11 @@ const char * deScriptor::getMessage()
 {
       return error_message.c_str();
 }
-bool deScriptor::loadData(nall::string b_name,uint8_t * data_start,const long f_size,SNES::MappedRAM * cartrom, void * vsprom,
-                           SNES::StaticRAM * wram)
+bool deScriptor::loadData(nall::string b_name,uint8_t * data_start,const long f_size,void * cartrom, void * vsprom,
+                           void * wram, void * snes_page)
 {
     long i;
+    d_string plugin_file;
     
     if(!data_start) return false;
     file_base=b_name();
@@ -62,6 +64,58 @@ bool deScriptor::loadData(nall::string b_name,uint8_t * data_start,const long f_
     source_tracker.cartrom=cartrom;
     source_tracker.vsprom=vsprom;
     source_tracker.wram=wram;
+    source_tracker.snes_page=(Page *)snes_page;
+    
+    
+    WIN32_FIND_DATA fileData;
+    plugin_file=file_base;
+    for(i=plugin_file.length();i>=0;i--)
+    {
+         if(plugin_file[i]=='/') break;
+    }
+    if(i>0)
+    {
+         plugin_file=plugin_file.substr(0,i+1);
+    }
+    else
+    {
+         return true;
+    }
+    plugin_file+="*.dll";
+    size_t converted_size=0;
+    size_t original_size=plugin_file.length()+1;
+    wchar_t * wplugin_file=new wchar_t[original_size*3];
+    mbstowcs_s(&converted_size,wplugin_file,original_size,plugin_file.c_str(),_TRUNCATE);
+    HANDLE fileHandle = FindFirstFile(wplugin_file, &fileData);
+    delete [] wplugin_file;
+    if (fileHandle == (void*)ERROR_INVALID_HANDLE || fileHandle == (void*)ERROR_FILE_NOT_FOUND)
+    {
+       // We couldn't find any plugins
+         return true;
+    }
+    // Load the plugin.
+    plugin_file=plugin_file.substr(0,i+1);
+    converted_size=0;
+    original_size=plugin_file.length()+1;
+    wplugin_file=new wchar_t[original_size*3];
+    mbstowcs_s(&converted_size,wplugin_file,original_size,plugin_file.c_str(),_TRUNCATE);
+    wcscat(wplugin_file,fileData.cFileName);
+    plugin_instance = LoadLibrary(wplugin_file);
+    delete [] wplugin_file;
+    if (!plugin_instance) {
+         error_message="Library Failed to Load";
+         return true;
+    }
+    scriptPlugin=(SCRIPT_PROC) GetProcAddress(plugin_instance,"scriptPluginFunction");
+    scriptGlobals=(PLUGIN_GLOBALS) GetProcAddress(plugin_instance,"setPluginGlobals");
+    if(!scriptPlugin || !scriptGlobals)
+    {
+         error_message="Functions did not Export";
+         return true;
+    }
+    plugin_exists=true;
+    scriptGlobals(ROM_data,snes_page,file_size,SNES::memory::wram.data(),SNES::memory::cartrom.data(),source_tracker);
+    FindClose(fileHandle);
     
     /*d_string f_name=file_base+"dsc.bin";
     d_string f_name2=file_base+"dsc.txt";
@@ -220,6 +274,7 @@ bool deScriptor::unloadData()
          i=j;
     }
     
+    FreeLibrary(plugin_instance);
     return true;
 }
 
@@ -252,6 +307,16 @@ void deScriptor::saveState(uint8_t slot)
 void deScriptor::recordScript()
 { 
      if(step.converted_counter<0) return;
+     if(plugin_exists)
+     {
+          d_string temp_message=scriptPlugin(step,source_tracker);
+          if(temp_message.length()>0)
+          {
+               display_error=true;
+               error_message=temp_message;
+          }
+          return;
+     }
      
      int16_t index=ROM_data[step.converted_counter].script_index;
      bool Bit16Ops=false;

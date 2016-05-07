@@ -28,7 +28,7 @@ int32_t BRANCH::convertPosition(int32_t pos)
     if(pos<0) return pos;
     if(pos<0x7E0000 || pos>=0x800000)
     {
-         SNES::Bus::Page &page = SNES::bus.page[pos >> 8];
+         Page &page = snes_page[pos >> 8];
          if (page.access == cartrom || page.access == vsprom)
          {
              return page.offset + pos;
@@ -51,7 +51,7 @@ int32_t BRANCH::isRAM(int32_t pos)
     if(pos<0) return pos;
     if(pos<0x7E0000 || pos>=0x800000)
     {
-         SNES::Bus::Page &page = SNES::bus.page[pos >> 8];
+         Page &page = snes_page[pos >> 8];
          if (page.access == wram)
          {
               pos&=0x01FFF;
@@ -68,7 +68,7 @@ int32_t BRANCH::isRAM(int32_t pos)
 bool BRANCH::isROM(int32_t pos)
 {
     if(pos<0) return pos;
-    SNES::Bus::Page &page = SNES::bus.page[pos >> 8];
+    Page &page = snes_page[pos >> 8];
     if (page.access == cartrom || page.access == vsprom)
     {
          return true;

@@ -3,12 +3,19 @@
 
 #include <string>
 #include <fstream>
+#include <windows.h>
 
 typedef std::string d_string;
 
 #include "BRANCH.hpp"
 #include "OPCODE_STEP.hpp"
 #include "ROM_DATA.hpp"
+
+#ifdef BUILD_DLL
+    #define DLLAPI __declspec(dllexport)
+#else
+    #define DLLAPI
+#endif // BUILD_DLL
 
 
 enum byteFlags{
@@ -35,13 +42,24 @@ struct SCRIPT_JUMP{
      SCRIPT_JUMP();
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+DLLAPI const char * scriptPluginFunction(const OPCODE_STEP &,BRANCH &);
+DLLAPI void setPluginGlobals(ROM_DATA *,void *,unsigned long,uint8_t *,uint8_t *,BRANCH &);
+#ifdef __cplusplus
+}
+#endif
+
+typedef const char * (__cdecl *SCRIPT_PROC)(const OPCODE_STEP &,const BRANCH &);
+typedef void (__cdecl *PLUGIN_GLOBALS)(ROM_DATA *, void *,unsigned long,uint8_t *,uint8_t *,BRANCH &);
 
 class deScriptor{
 private:
     BRANCH source_tracker;
     ROM_DATA * ROM_data;
     d_string file_base;
-    long file_size;
+    unsigned long file_size;
     int32_t temp_int;
     int32_t temp_int2;
     bool display_error;
@@ -58,6 +76,11 @@ private:
     uint16_t num_scripts;
     OPCODE_STEP step;
     d_string asm_strings[0x100];
+    HANDLE plugin_handle;
+    HINSTANCE plugin_instance;
+    bool plugin_exists;
+    SCRIPT_PROC scriptPlugin;
+    PLUGIN_GLOBALS scriptGlobals;
     
     void recordScript();
     uint16_t busRead16(uint32_t);
@@ -92,8 +115,8 @@ public:
     deScriptor(uint16_t &,uint16_t &,uint16_t &,uint16_t &,uint16_t &,uint8_t &,bool &,bool &);
     bool error();
     const char * getMessage();
-    bool loadData(nall::string b_name,uint8_t * data_start,const long f_size,SNES::MappedRAM * cartrom, void * vsprom,
-        SNES::StaticRAM * wram);
+    bool loadData(nall::string b_name,uint8_t * data_start,const long f_size,void * cartrom, void * vsprom,
+        void * wram,void * snes_page);
     bool unloadData();
     void loadState(uint8_t slot);
     void saveState(uint8_t slot);

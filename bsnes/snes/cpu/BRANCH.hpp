@@ -1,13 +1,21 @@
 #ifndef BRANCH_H
 #define BRANCH_H
 
+#include <stdint.h>
+
+struct Page{
+       void * access;
+       unsigned offset;
+};
+
 struct BRANCH{
      int32_t RAM_sources[0x20000];
      int32_t Ah_source,Xh_source,Yh_source;
      int32_t Al_source,Xl_source,Yl_source;
-     SNES::MappedRAM * cartrom;
+     void * cartrom;
      void * vsprom;
-     SNES::StaticRAM * wram;
+     void * wram;
+     Page * snes_page;
      
      BRANCH();
      void Move(int32_t,int32_t);

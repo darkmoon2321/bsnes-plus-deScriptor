@@ -1,6 +1,12 @@
 #ifndef ROM_DATA_H
 #define ROM_DATA_H
 
+#include <string>
+#include <stdint.h>
+#include "OPCODE_STEP.hpp"
+
+typedef std::string d_string;
+
 struct ROM_DATA{
            uint8_t ROM_bytes;
            d_string description;
