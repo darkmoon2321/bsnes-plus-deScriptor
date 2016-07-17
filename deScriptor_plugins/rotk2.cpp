@@ -55,6 +55,11 @@ extern "C" void setPluginGlobals(ROM_DATA * data,void * p, unsigned long f_size,
      tracker_address=&source_tracker;
 }
 
+extern "C" const char * unloadPlugin()
+{
+       return "";
+}
+
 extern "C" const char * scriptPluginFunction(const OPCODE_STEP &step,BRANCH & source_tracker)
 {
      //need to convert data from opcode step to position and converted_position
@@ -2457,10 +2462,7 @@ extern "C" const char * scriptPluginFunction(const OPCODE_STEP &step,BRANCH & so
                   ROM_data[converted_position].description+="/";
                   ROM_data[converted_position].description+=convertIntToLoROMString(temp_int2);
                   
-                  if(temp_int2>file_size)
-                  {
-                       break;
-                  }
+                  if(temp_int2>file_size) break;
                   ROM_data[temp_int2].addLabel(converted_position);
                   
                   break;
