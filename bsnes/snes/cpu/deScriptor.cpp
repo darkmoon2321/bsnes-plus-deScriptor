@@ -108,7 +108,8 @@ bool deScriptor::loadData(nall::string b_name,uint8_t * data_start,const long f_
     }
     scriptPlugin=(SCRIPT_PROC) GetProcAddress(plugin_instance,"scriptPluginFunction");
     scriptGlobals=(PLUGIN_GLOBALS) GetProcAddress(plugin_instance,"setPluginGlobals");
-    if(!scriptPlugin || !scriptGlobals)
+    scriptUnload=(UNLOAD_PLUGIN_PROC) GetProcAddress(plugin_instance,"unloadPlugin");
+    if(!scriptPlugin || !scriptGlobals || !scriptUnload)
     {
          error_message="Functions did not Export";
          return true;
@@ -162,6 +163,18 @@ bool deScriptor::unloadData()
     d_string f_name=file_base;
     f_name+="-dsc.txt";
     std::ofstream outfile;
+    
+    if(plugin_exists)
+    {
+         d_string temp_message=scriptUnload();
+         if(temp_message.length()>0)
+         {
+              display_error=true;
+              error_message=temp_message;
+         }
+         return true;
+    }
+    
     outfile.open(f_name.c_str());
     /*std::ofstream outfile2;
     f_name=file_base;
@@ -246,7 +259,7 @@ bool deScriptor::unloadData()
                   outfile<<std::endl;
                   while(temp_int<ROM_data[i].description.length())
                   {
-                       outfile<<"                                     ";
+                       outfile<<"                             ";
                        outfile<<(ROM_data[i].description).substr(temp_int,TEXT_WIDTH-29);
                        outfile<<std::endl;
                        temp_int+=(TEXT_WIDTH-29);
@@ -338,7 +351,7 @@ void deScriptor::recordScript()
                {
                     temp_int=source_tracker.RAM_sources[source_tracker.isRAM(step.accessed_address)];
                     temp_int2=source_tracker.RAM_sources[source_tracker.isRAM(step.accessed_address+1)];
-                    Bit16Ops=(temp_int2>=0 && temp_int2!=temp_int);
+                    Bit16Ops=(temp_int2>=0 && (temp_int2-temp_int)==1);
                     if(temp_int<0)
                     {
                          addEmptyScriptJump(step.converted_counter);
@@ -350,7 +363,7 @@ void deScriptor::recordScript()
                {
                     temp_int=step.converted_address;
                     temp_int2=source_tracker.convertPosition(Stack+2);
-                    Bit16Ops=(temp_int2>=0 && temp_int2!=temp_int);//is this right?
+                    Bit16Ops=(temp_int2>=0 && (temp_int2-temp_int)==1);//is this right?
                     if(temp_int<0)
                     {
                          addEmptyScriptJump(step.converted_counter);
@@ -364,7 +377,7 @@ void deScriptor::recordScript()
                     {
                          temp_int=source_tracker.RAM_sources[source_tracker.isRAM(step.accessed_address)];
                          temp_int2=source_tracker.RAM_sources[source_tracker.isRAM(step.accessed_address+1)];
-                         Bit16Ops=(temp_int2>=0 && temp_int2!=temp_int);
+                         Bit16Ops=(temp_int2>=0 && (temp_int2-temp_int)==1);
                          if(temp_int<0)
                          {
                               addEmptyScriptJump(step.converted_counter);
@@ -374,7 +387,7 @@ void deScriptor::recordScript()
                     }
                     else
                     {
-                         Bit16Ops=((source_tracker.Xh_source>=0) && (source_tracker.Xh_source!=source_tracker.Xl_source));
+                         Bit16Ops=((source_tracker.Xh_source>=0) && (source_tracker.Xh_source-source_tracker.Xl_source)==1);
                     }
                }
                if(index<0)
@@ -403,7 +416,7 @@ void deScriptor::recordScript()
                     Bit16Ops=(temp_int2>=0 && temp_int2!=temp_int);
                     break;
                }
-               Bit16Ops=((source_tracker.Xh_source>=0) && (source_tracker.Xh_source!=source_tracker.Xl_source));
+               Bit16Ops=((source_tracker.Xh_source>=0) && ((source_tracker.Xh_source-source_tracker.Xl_source)==1));
                break;
           case 0x6C:
           case 0xDC:
@@ -411,7 +424,7 @@ void deScriptor::recordScript()
                if(converted_position<0) return;
                temp_int=source_tracker.RAM_sources[source_tracker.isRAM(step.accessed_address)];
                temp_int2=source_tracker.RAM_sources[source_tracker.isRAM(step.accessed_address+1)];
-               Bit16Ops=(temp_int2>=0 && temp_int2!=temp_int);
+               Bit16Ops=(temp_int2>=0 && (temp_int2-temp_int)==1);
                break;
           case 0x60:
           case 0x6B:
@@ -420,7 +433,7 @@ void deScriptor::recordScript()
                converted_position=source_tracker.RAM_sources[temp_int];
                if(converted_position<0) return;
                temp_int2=source_tracker.convertPosition(Stack+2);
-               Bit16Ops=(temp_int2>=0 && temp_int2!=temp_int);//is this right?
+               Bit16Ops=(temp_int2>=0 && (temp_int2-temp_int)==1);//is this right?
                break;
      }
      if(converted_position<0) return;

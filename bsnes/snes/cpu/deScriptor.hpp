@@ -47,12 +47,14 @@ extern "C" {
 #endif
 DLLAPI const char * scriptPluginFunction(const OPCODE_STEP &,BRANCH &);
 DLLAPI void setPluginGlobals(ROM_DATA *,void *,unsigned long,uint8_t *,uint8_t *,BRANCH &);
+DLLAPI const char * unloadPlugin();
 #ifdef __cplusplus
 }
 #endif
 
 typedef const char * (__cdecl *SCRIPT_PROC)(const OPCODE_STEP &,const BRANCH &);
 typedef void (__cdecl *PLUGIN_GLOBALS)(ROM_DATA *, void *,unsigned long,uint8_t *,uint8_t *,BRANCH &);
+typedef const char * (__cdecl *UNLOAD_PLUGIN_PROC)();
 
 class deScriptor{
 private:
@@ -81,6 +83,7 @@ private:
     bool plugin_exists;
     SCRIPT_PROC scriptPlugin;
     PLUGIN_GLOBALS scriptGlobals;
+    UNLOAD_PLUGIN_PROC scriptUnload;
     
     void recordScript();
     uint16_t busRead16(uint32_t);
