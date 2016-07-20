@@ -31,6 +31,7 @@ unsigned long file_size;
 uint8_t * wram;
 uint8_t * cartrom;
 BRANCH * sources;
+d_string error_message;
 
 char convertToASCII(char c);
 d_string convertByteToHexString(uint8_t toConvert);
@@ -44,8 +45,8 @@ uint16_t busRead16(uint32_t location);
 uint8_t getSourceByte(uint32_t);
 uint16_t getSourceWord(uint32_t);
 uint32_t getSourceAddress(uint32_t);
-d_string script0CEA5D(const OPCODE_STEP &step);
-d_string script0CD0AF(const OPCODE_STEP &step);
+uint32_t script0CEA5D(uint32_t);
+uint32_t script0CD0AF(uint32_t);
 
 extern "C" void setPluginGlobals(ROM_DATA * data,void * p, unsigned long f_size,uint8_t * ram,uint8_t * rom,BRANCH & source_tracker)
 {
@@ -65,7 +66,7 @@ extern "C" const char * unloadPlugin()
 
 extern "C" const char * scriptPluginFunction(const OPCODE_STEP &step,BRANCH & source_tracker)
 {    
-     d_string error_message="";
+     //error_message="";
      /*uint32_t converted_position=step.converted_address;
      
      if(converted_position<0 || converted_position>file_size) return "";
@@ -76,27 +77,36 @@ extern "C" const char * scriptPluginFunction(const OPCODE_STEP &step,BRANCH & so
      switch(step.converted_counter)
      {
           case 0x0CD0AF:
-               error_message=script0CD0AF(step);
+               script0CD0AF(sources->Xl_source);
                break;
           case 0x0CEA5D:
-               error_message=script0CEA5D(step);
+               if(!ROM_data[sources->Xl_source].flags)
+               {
+                    script0CEA5D(sources->Xl_source);
+                    //error_message=convert24BitToHexString(sources->Xl_source);
+                    //return error_message.c_str();
+               }
                break;
-          /*case 0x0CCA33:
+          case 0x0CCA33:
+               ROM_data[sources->Xl_source].flags|=SCRIPT;
                ROM_data[sources->Xl_source].description="Graphics Decompression Instructions";
                break;
-          case 0x0CA616:
+          /*case 0x0CA616:
+               ROM_data[sources->Xl_source].flags|=SCRIPT;
                ROM_data[sources->Xl_source].description='\'';
                ROM_data[sources->Xl_source].description+=(char)ROM_data[sources->Xl_source].ROM_bytes;
                ROM_data[sources->Xl_source].description+='\'';
-               break;
+               break;*/
           case 0x1080EC:
           case 0x1080FC:
+               ROM_data[sources->Xl_source].flags|=SCRIPT;
                ROM_data[sources->Xl_source].description="ANIMATION: Command ";
                ROM_data[sources->Xl_source].description+=convertByteToHexString(ROM_data[sources->Xl_source].ROM_bytes);
                break;
           case 0x0C9BD8:
+               ROM_data[sources->Xl_source].flags|=SCRIPT;
                ROM_data[sources->Xl_source].description="Compressed Map Data";
-               break;*/
+               break;
           default:
                return "";
      }
@@ -334,16 +344,13 @@ extern "C" DLLAPI BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPV
 }
 
 
-d_string script0CEA5D(const OPCODE_STEP &step)
+uint32_t script0CEA5D(uint32_t converted_position)
 {
-     uint32_t temp_int;
-     uint32_t temp_int2;
-     uint32_t position;
-     uint32_t converted_position=sources->Xl_source;
+     uint32_t temp_int, temp_int2;
+     uint32_t position=converted_position;
      bool final_command=false;
-     position=converted_position;
      
- //    while(!final_command)
+     while(!final_command)
      {
           final_command=ROM_data[converted_position].ROM_bytes&0x80;
           if(final_command)
@@ -764,15 +771,16 @@ d_string script0CEA5D(const OPCODE_STEP &step)
                  ROM_data[converted_position].description="  Invalid 0CEA5D Script Command";
                  break;
           } //switch(ROM_bytes[position])
+          converted_position=position;
      }
-     return "";
+     return position;
 }
-d_string script0CD0AF(const OPCODE_STEP &step)
+uint32_t script0CD0AF(uint32_t converted_position)
 {
-     uint32_t converted_position=sources->Xl_source;
-     if(ROM_data[converted_position].flags) return "";
+     uint32_t position=converted_position+1;
+     ROM_data[converted_position].frequency++;
+     if(ROM_data[converted_position].flags) return converted_position;
      
-     d_string message=convert24BitToHexString(converted_position);
      uint32_t temp_int;
      uint32_t temp_int2;
      ROM_data[converted_position].flags|=SCRIPT;
@@ -814,11 +822,7 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              ROM_data[converted_position].description="EVENT: GOTO 0x";
              temp_int=getSourceWord(converted_position+1);
              temp_int2=converted_position+temp_int+3;
-             if(!(temp_int2&0x008000))
-             {
-                  temp_int2+=0x010000;
-                  temp_int2|=0x008000;
-             }
+             temp_int2|=0x008000;
              ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
              if(temp_int2>file_size) break;
              ROM_data[temp_int2].addLabel(converted_position);
@@ -828,11 +832,7 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              temp_int=getSourceByte(converted_position+1);
              temp_int|=0xff00;
              temp_int2=(converted_position&0xff0000) + ((converted_position+temp_int+2)&0xffff);
-             if(!(temp_int2&0x008000))
-             {
-                  temp_int2+=0x010000;
-                  temp_int2|=0x008000;
-             }
+             temp_int2|=0x008000;
              ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
              if(temp_int2>file_size) break;
              ROM_data[temp_int2].addLabel(converted_position);
@@ -851,20 +851,59 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              ROM_data[temp_int].addLabel(converted_position);
              break;
         case 0x08:
-             ROM_data[converted_position].description="EVENT: If !(Sub-Result), add WORD to position";
+             ROM_data[converted_position].description="EVENT: If !(Sub-Result), GOTO 0x";
+             position=script0CEA5D(position);
+             temp_int=getSourceWord(position);
+             position+=2;
+             temp_int2=position+temp_int;
+             temp_int2|=0x008000;
+             ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+             if(temp_int2>file_size) break;
+             ROM_data[temp_int2].addLabel(converted_position);
              break;
         case 0x09:
-             ROM_data[converted_position].description="EVENT: If (Sub-Result), add WORD to position";
+             ROM_data[converted_position].description="EVENT: If (Sub-Result), GOTO 0x";
+             position=script0CEA5D(position);
+             temp_int=getSourceWord(position);
+             position+=2;
+             temp_int2=position+temp_int;
+             temp_int2|=0x008000;
+             ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+             if(temp_int2>file_size) break;
+             ROM_data[temp_int2].addLabel(converted_position);
              break;
         case 0x0a:
-             ROM_data[converted_position].description="????";
+             ROM_data[converted_position].description="EVENT: Subtract ";
+             temp_int=getSourceAddress(position);
+             position+=3;
+             temp_int2=getSourceWord(position);
+             position+=2;
+             ROM_data[converted_position].description+=temp_int;
+             ROM_data[converted_position].description+=" From Currency(Sub-Result). If positive, GOTO 0x";
+             temp_int2=position+temp_int2;
+             temp_int2|=0x008000;
+             ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+             if(temp_int2>file_size) break;
+             ROM_data[temp_int2].addLabel(converted_position);
              break;
         case 0x0b:
-             ROM_data[converted_position].description="EVENT: Subtract 24-bit From Currency(Sub-Result). If negative, add WORD to position";
+             ROM_data[converted_position].description="EVENT: Subtract ";
+             temp_int=getSourceAddress(position);
+             position+=3;
+             temp_int2=getSourceWord(position);
+             position+=2;
+             ROM_data[converted_position].description+=temp_int;
+             ROM_data[converted_position].description+=" From Currency(Sub-Result). If negative, GOTO 0x";
+             temp_int2=position+temp_int2;
+             temp_int2|=0x008000;
+             ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+             if(temp_int2>file_size) break;
+             ROM_data[temp_int2].addLabel(converted_position);
              break;
         case 0x0c:
              ROM_data[converted_position].description="EVENT: Set bit ";
-             temp_int2=getSourceWord(converted_position+1);
+             temp_int2=getSourceWord(position);
+             position+=2;
              temp_int=temp_int2>>3;
              temp_int2&=0x7;
              ROM_data[converted_position].description+=convertToASCII(temp_int2);
@@ -872,10 +911,12 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              temp_int+=0x2258;
              ROM_data[converted_position].description+=convertWordToHexString(temp_int);
              ROM_data[converted_position].description+=" if (Sub-Result), else Clear it.";
+             position=script0CEA5D(position);
              break;
         case 0x0d:
              ROM_data[converted_position].description="EVENT: Set bit ";
-             temp_int2=getSourceWord(converted_position+1);
+             temp_int2=getSourceWord(position);
+             position+=2;
              temp_int=temp_int2>>3;
              temp_int2&=0x7;
              ROM_data[converted_position].description+=convertToASCII(temp_int2);
@@ -883,10 +924,12 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              temp_int+=0x2834;
              ROM_data[converted_position].description+=convertWordToHexString(temp_int);
              ROM_data[converted_position].description+=" if (Sub-Result), else Clear it.";
+             position=script0CEA5D(position);
              break;
         case 0x0e:
              ROM_data[converted_position].description="EVENT: Set bit ";
-             temp_int2=getSourceByte(converted_position+1);
+             temp_int2=getSourceByte(position);
+             position++;
              temp_int=temp_int2>>3;
              temp_int2&=0x7;
              ROM_data[converted_position].description+=convertToASCII(temp_int2);
@@ -894,32 +937,41 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              temp_int+=0xf;
              ROM_data[converted_position].description+=convertByteToHexString(temp_int);
              ROM_data[converted_position].description+=" if (Sub-Result), else Clear it.";
+             position=script0CEA5D(position);
              break;
         case 0x10:
         case 0x14:
              ROM_data[converted_position].description="EVENT: Store (BYTE)(Sub-Result) at 7E:";
-             temp_int2=getSourceWord(converted_position+1);
+             temp_int2=getSourceWord(position);
+             position+=2;
              temp_int2+=0x2258;
              ROM_data[converted_position].description+=convertWordToHexString(temp_int2);
+             position=script0CEA5D(position);
              break;
         case 0x11:
         case 0x15:
              ROM_data[converted_position].description="EVENT: Store (BYTE)(Sub-Result) at 7E:";
              temp_int2=getSourceWord(converted_position+1);
+             position+=2;
              temp_int2+=0x2834;
              ROM_data[converted_position].description+=convertWordToHexString(temp_int2);
+             position=script0CEA5D(position);
              break;
         case 0x12:
         case 0x16:
              ROM_data[converted_position].description="EVENT: Store (BYTE)(Sub-Result) at Current Event byte 0x";
-             temp_int2=getSourceByte(converted_position+1);
+             temp_int2=getSourceByte(position);
+             position+=2;
              temp_int2+=0xf;
              ROM_data[converted_position].description+=convertByteToHexString(temp_int2);
+             position=script0CEA5D(position);
              break;
         case 0x17:
              ROM_data[converted_position].description="EVENT: 7E:";
-             temp_int=getSourceWord(converted_position+1);
-             temp_int2=getSourceWord(converted_position+3);
+             temp_int=getSourceWord(position);
+             position+=2;
+             temp_int2=getSourceWord(position);
+             position+=2;
              temp_int+=0x2258;
              ROM_data[converted_position].description+=convertWordToHexString(temp_int);
              ROM_data[converted_position].description+="= 0x";
@@ -928,26 +980,32 @@ d_string script0CD0AF(const OPCODE_STEP &step)
         case 0x18:
         case 0x1c:
              ROM_data[converted_position].description="EVENT: 7E:";
-             temp_int=getSourceWord(converted_position+1);
+             temp_int=getSourceWord(position);
+             position+=2;
              temp_int+=0x2258;
              ROM_data[converted_position].description+=convertWordToHexString(temp_int);
              ROM_data[converted_position].description+="= (Sub-Result)";
+             position=script0CEA5D(position);
              break;
         case 0x19:
         case 0x1D:
              ROM_data[converted_position].description="EVENT: 7E:";
-             temp_int=getSourceWord(converted_position+1);
+             temp_int=getSourceWord(position);
+             position+=2;
              temp_int+=0x2834;
              ROM_data[converted_position].description+=convertWordToHexString(temp_int);
              ROM_data[converted_position].description+="= (Sub-Result)";
+             position=script0CEA5D(position);
              break;
         case 0x1a:
         case 0x1E:
              ROM_data[converted_position].description="EVENT: Current Event byte 0x";
-             temp_int=getSourceByte(converted_position+1);
+             temp_int=getSourceByte(position);
+             position++;
              temp_int+=0xf;
              ROM_data[converted_position].description+=convertByteToHexString(temp_int);
              ROM_data[converted_position].description+="= (Sub-Result)";
+             position=script0CEA5D(position);
              break;
         case 0x1b:
              ROM_data[converted_position].description="EVENT: 7E:";
@@ -964,6 +1022,7 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              ROM_data[converted_position].description+=convertWordToHexString(temp_int);
              ROM_data[converted_position].description+="=0x";
              ROM_data[converted_position].description+=convertWordToHexString(temp_int2);
+             position+=6;
              break;
         case 0x20:
              ROM_data[converted_position].description="EVENT: Load Default Boy and Dog Sprites";
@@ -980,15 +1039,18 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              ROM_data[converted_position].description="EVENT: $0E6E=";
              temp_int=getSourceWord(converted_position+1);
              ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+             error_message="Command 23";
              break;
         case 0x26:
-             ROM_data[converted_position].description="????";
+             ROM_data[converted_position].description="EVENT: Load Tile Map to VRAM";
+             error_message="Command 26"; //command has no operands.
              break;
         case 0x27:
              ROM_data[converted_position].description="EVENT: $0B83=0x8000";
+             error_message="Command 27";
              break;
         case 0x29:
-             ROM_data[converted_position].description="EVENT: Execute New Event at ";
+             ROM_data[converted_position].description="EVENT: Execute New Event at 0x";
              temp_int2=getSourceByte(converted_position+3);
              temp_int=getSourceWord(converted_position+1);
              temp_int2<<=1;
@@ -1002,9 +1064,11 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              break;
         case 0x2a:
              ROM_data[converted_position].description="EVENT: Freeze (Sub-Script) Player/NPC/Monster";
+             position=script0CEA5D(position);
              break;
         case 0x2b:
              ROM_data[converted_position].description="EVENT: Unfreeze (Sub-Script) Player/NPC/Monster";
+             position=script0CEA5D(position);
              break;
         case 0x2c:
              ROM_data[converted_position].description="EVENT: Freeze Current Event Target Player/NPC/Monster";
@@ -1013,15 +1077,26 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              ROM_data[converted_position].description="EVENT: Unfreeze Current Event Target Player/NPC/Monster";
              break;
         case 0x2e:
-             ROM_data[converted_position].description="????";
+             ROM_data[converted_position].description="EVENT: Perform next event if monster/npc/player has ????";
+             position=script0CEA5D(position);
+             /*
+             Get monster/npc/player struct from 0cea5d. (actually, compares struct position with 0x2000, which indicates it doesn't have to be normal monster/player/npc
+       	     struct.  Check struct word x6C (if minus, etc), then check bitfield x10 with 0x0100 and 0x0040. If either of them are clear, perform next scheduled event.
+       	     Uses 0040 and 0100 in bitfield x10, and uses word x6C.
+       	     Perform next event if monster/npc/player has not completed move(????)
+             */
              break;
         case 0x30:
         case 0x31:
         case 0x32:
-             ROM_data[converted_position].description="????sound-related?";
+             ROM_data[converted_position].description="EVENT: Play Sound Effect 0x";
+             temp_int=getSourceByte(position);
+             position++;
+             ROM_data[converted_position].description+=convertByteToHexString(temp_int);
              break;
         case 0x33:
              ROM_data[converted_position].description="????";
+             error_message="Command 33";
              break;
         case 0x38:
         case 0x3A:
@@ -1030,21 +1105,35 @@ d_string script0CD0AF(const OPCODE_STEP &step)
         case 0x39:
         case 0x3B:
              ROM_data[converted_position].description="????";
+             error_message="Command 3B";
              break;
         case 0x3c:
              ROM_data[converted_position].description="EVENT: Spawn Monster/NPC with Flags";
              break;
         case 0x3d:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Set Monster/NPC Talk Event";
+             position=script0CEA5D(position);
+             temp_int=getSourceWord(position); //This specifies the talk event chosen.
+             position+=2;
              break;
         case 0x3f:
              ROM_data[converted_position].description="";
+             position=script0CEA5D(position);
+             error_message="Command 3F";
              break;
         case 0x42:
-             ROM_data[converted_position].description="EVENT: Set (Sub-Script) Monster/NPC/Player to X,Y";
+             ROM_data[converted_position].description="EVENT: Set (SUB) Monster/NPC/Player to X,Y";
+             position=script0CEA5D(position);
+             temp_int=getSourceByte(position);
+             position++;
+             temp_int2=getSourceByte(position);
+             position++;
              break;
         case 0x43:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Set (SUB1) Monster/NPC/Player to X(SUB2),Y(SUB3)";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x44:
         case 0x45:
@@ -1057,36 +1146,46 @@ d_string script0CD0AF(const OPCODE_STEP &step)
         case 0x4A:
         case 0x4B:
              ROM_data[converted_position].description="";
+             error_message="Command 48";
              break;
         case 0x4c:
              ROM_data[converted_position].description="";
+             error_message="Command 4C";
              break;
         case 0x4d:
              ROM_data[converted_position].description="";
+             error_message="Command 4D";
              break;
         case 0x4e:
              ROM_data[converted_position].description="";
+             error_message="Command 4E";
              break;
         case 0x50:
              ROM_data[converted_position].description="";
+             error_message="Command 50";
              break;
         case 0x51:
-             ROM_data[converted_position].description="EVENT: Display Message Box";
+             ROM_data[converted_position].description="EVENT: Display Message Box Dialog";
              break;
         case 0x52:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Set Non-Windowed Message";
+             temp_int=getSourceWord(position); //Added to 91:D000 to get a pointer to an index to a pointer to the message start.
+             position+=2;
              break;
         case 0x54:
              ROM_data[converted_position].description="";
+             error_message="Command 54";
              break;
         case 0x55:
              ROM_data[converted_position].description="EVENT: Close Message Box";
              break;
         case 0x58:
-             ROM_data[converted_position].description="EVENT: Turn on Music?";
+             ROM_data[converted_position].description="EVENT: Increase Music Volume 0x10";
+             //increase volume by 0x10 out of 0xff
              break;
         case 0x59:
-             ROM_data[converted_position].description="EVENT: Turn off Music?";
+             ROM_data[converted_position].description="EVENT: Decrease Music Volume 0x10";
+             //decrease volume by 0x10 out of 0xff
              break;
         case 0x5a:
              ROM_data[converted_position].description="EVENT: Disable+Clear Non-windowed Messages";
@@ -1095,109 +1194,178 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              ROM_data[converted_position].description="EVENT: Enable Non-windowed Messages";
              break;
         case 0x5c:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Mark Room Treasure as Found";
+             //Doesn't award the ingredient/treasure itself, but keeps the dog from sniffing for it, and
+             //changes array values in 107E,10CE, and 111E such that a "chest" sprite will show open.
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x5d:
              ROM_data[converted_position].description="EVENT: Set Room Treasure Event";
+             position=script0CEA5D(position);
+             temp_int=getSourceWord(position);
+             position+=2;
              break;
         case 0x5e:
              ROM_data[converted_position].description="";
+             error_message="Command 5E";
              break;
         case 0x5f:
              ROM_data[converted_position].description="";
+             error_message="Command 5F";
              break;
         case 0x60:
              ROM_data[converted_position].description="";
+             error_message="Command 60";
              break;
         case 0x61:
              ROM_data[converted_position].description="";
+             error_message="Command 61";
              break;
         case 0x62:
              ROM_data[converted_position].description="";
+             error_message="Command 62";
              break;
         case 0x63:
              ROM_data[converted_position].description="";
+             error_message="Command 63";
              break;
         case 0x64:
              ROM_data[converted_position].description="";
+             error_message="Command 64";
              break;
         case 0x65:
              ROM_data[converted_position].description="";
+             error_message="Command 65";
              break;
         case 0x66:
              ROM_data[converted_position].description="";
+             error_message="Command 66";
              break;
         case 0x68:
              ROM_data[converted_position].description="";
+             error_message="Command 68";
              break;
         case 0x69:
              ROM_data[converted_position].description="";
+             error_message="Command 69";
              break;
         case 0x6a:
              ROM_data[converted_position].description="";
+             error_message="Command 6A";
              break;
         case 0x6c:
              ROM_data[converted_position].description="EVENT: Move Player/Monster/NPC to Absolute Position";
+             position=script0CEA5D(position);
+             temp_int=getSourceByte(position);
+             position++;
+             temp_int2=getSourceByte(position);
+             position++;
              break;
         case 0x6d:
              ROM_data[converted_position].description="EVENT: Move Player/Monster/NPC to Relative Position";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x6e:
              ROM_data[converted_position].description="EVENT: Move Player/Monster/NPC to Absolute Position";
+             position=script0CEA5D(position);
+             temp_int=getSourceByte(position);
+             position++;
+             temp_int2=getSourceByte(position);
+             position++;
              break;
         case 0x6f:
              ROM_data[converted_position].description="EVENT: Move Player/Monster/NPC to Relative Position";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x70:
              ROM_data[converted_position].description="EVENT: Turn (Sub-Script) Monster/NPC/Player to face (Sub-Script) Monster/NPC/Player";
              break;
         case 0x71:
              ROM_data[converted_position].description="EVENT: Turn Two (Sub-Script) Monsters/NPCs/Players to Face Each Other";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x73:
              ROM_data[converted_position].description="";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             //appears to involve moving an npc
+             error_message="Command 73";
              break;
         case 0x74:
              ROM_data[converted_position].description="EVENT: Turn (Sub-Script) Monster/NPC/Player Up";
+             position=script0CEA5D(position);
              break;
         case 0x75:
              ROM_data[converted_position].description="EVENT: Turn (Sub-Script) Monster/NPC/Player Down";
+             position=script0CEA5D(position);
              break;
         case 0x76:
              ROM_data[converted_position].description="EVENT: Turn (Sub-Script) Monster/NPC/Player Left";
+             position=script0CEA5D(position);
              break;
         case 0x77:
              ROM_data[converted_position].description="EVENT: Turn (Sub-Script) Monster/NPC/Player Right";
+             position=script0CEA5D(position);
              break;
         case 0x78:
              ROM_data[converted_position].description="EVENT: Set (Sub-Script) Monster/NPC/Player Sprite/Animation Script";
+             position=script0CEA5D(position);
+             temp_int=getSourceWord(position); //This is the index to the index to the animation.
+             position+=2;
+             position=script0CEA5D(position); //This determines how you set/clear monster/npc/player bitfield(s)
              break;
         case 0x79:
              ROM_data[converted_position].description="";
+             error_message="Command 79";
              break;
         case 0x7a:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Store WORD (SUB2) at address (SUB1)";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x7b:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Store BYTE (SUB2) at address (SUB1)";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x7c:
-             ROM_data[converted_position].description="EVENT: Add 24-bit to Currency (Sub-Script)";
+             ROM_data[converted_position].description="EVENT: Add "; //24-bit to currency
+             position=script0CEA5D(position);
+             temp_int=getSourceAddress(position);
+             position+=3;
+             ROM_data[converted_position].description+=temp_int;
+             ROM_data[converted_position].description+=" from Currency (Sub-Script)";
              break;
         case 0x7d:
-             ROM_data[converted_position].description="EVENT: Subtract 24-bit from Currency (Sub-Script)";
+             ROM_data[converted_position].description="EVENT: Subtract "; //24-bit from currency
+             position=script0CEA5D(position);
+             temp_int=getSourceAddress(position);
+             position+=3;
+             ROM_data[converted_position].description+=temp_int;
+             ROM_data[converted_position].description+=" from Currency (Sub-Script)";
              break;
         case 0x7e:
              ROM_data[converted_position].description="";
+             error_message="Command 7E";
              break;
         case 0x7f:
              ROM_data[converted_position].description="";
+             error_message="Command 7F";
              break;
         case 0x80:
              ROM_data[converted_position].description="EVENT: Enable non-windowed messages????";
+             error_message="Command 80";
              break;
         case 0x81:
              ROM_data[converted_position].description="EVENT: Disable non-windowed messages????";
+             error_message="Command 81";
              break;
         case 0x82:
              ROM_data[converted_position].description="EVENT: Set Color Add/Subtract Settings to 7E:235B-235E";
@@ -1206,94 +1374,134 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              ROM_data[converted_position].description="EVENT: Set Color Add/Subtract Settings to $0F80-$0F83";
              break;
         case 0x84:
-             ROM_data[converted_position].description="EVENT: Add WORD to Currency (Sub-Script)";
+             ROM_data[converted_position].description="EVENT: Add (Sub-Script 2) to Currency (Sub-Script 1)";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x85:
-             ROM_data[converted_position].description="EVENT: Subtract WORD from Currency (Sub-Script)";
+             ROM_data[converted_position].description="EVENT: Subtract (Sub-Script 2) from Currency (Sub-Script 1)";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x86:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Set Music Volume";
+             //Higher is louder
+             position=script0CEA5D(position);
              break;
         case 0x87:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Set Music Speed";
+             //Higher is slower, lower is faster.
+             position=script0CEA5D(position);
              break;
         case 0x88:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Clear Ring Menu Item List";
              break;
         case 0x89:
              ROM_data[converted_position].description="EVENT: Set Item in Shopping Menu";
+             position=script0CEA5D(position); //get Item/Ingredient
+             position=script0CEA5D(position); //get Price
              break;
         case 0x8a:
              ROM_data[converted_position].description="";
+             error_message="Command 8A";
              break;
         case 0x8c:
              ROM_data[converted_position].description="EVENT: File Save Menu";
              break;
         case 0x8d:
              ROM_data[converted_position].description="";
+             error_message="Command 8D";
              break;
         case 0x8e:
              ROM_data[converted_position].description="";
+             error_message="Command 8E";
              break;
         case 0x8f:
              ROM_data[converted_position].description="";
+             error_message="Command 8F";
              break;
         case 0x90:
              ROM_data[converted_position].description="";
+             error_message="Command 90";
              break;
         case 0x91:
              ROM_data[converted_position].description="";
+             error_message="Command 91";
              break;
         case 0x92:
              ROM_data[converted_position].description="";
+             error_message="Command 92";
              break;
         case 0x93:
              ROM_data[converted_position].description="";
+             error_message="Command 93";
              break;
         case 0x94:
              ROM_data[converted_position].description="";
+             error_message="Command 94";
              break;
         case 0x95:
              ROM_data[converted_position].description="EVENT: Restore Monster/NPC/Player Hit Points";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x96:
              ROM_data[converted_position].description="";
+             error_message="Command 96";
              break;
         case 0x97:
              ROM_data[converted_position].description="EVENT: Set Screen Brightness";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x98:
              ROM_data[converted_position].description="";
+             error_message="Command 98";
              break;
         case 0x99:
              ROM_data[converted_position].description="";
+             error_message="Command 99";
              break;
         case 0x9a:
              ROM_data[converted_position].description="";
+             error_message="Command 9A";
              break;
         case 0x9b:
              ROM_data[converted_position].description="EVENT: Deallocate/Destroy (Sub-Script) Monster/NPC";
+             position=script0CEA5D(position);
              break;
         case 0x9c:
              ROM_data[converted_position].description="";
+             error_message="Command 9C";
              break;
         case 0x9d:
              ROM_data[converted_position].description="";
+             error_message="Command 9D";
              break;
         case 0x9e:
              ROM_data[converted_position].description="";
+             error_message="Command 9E";
              break;
         case 0x9f:
              ROM_data[converted_position].description="";
+             error_message="Command 9F";
              break;
         case 0xa0:
              ROM_data[converted_position].description="";
+             error_message="Command A0";
              break;
         case 0xa1:
              ROM_data[converted_position].description="";
+             error_message="Command A1";
              break;
         case 0xa2:
              ROM_data[converted_position].description="";
+             error_message="Command A2";
              break;
         case 0xa3:
              ROM_data[converted_position].description="EVENT: Execute Common Event ";
@@ -1302,72 +1510,93 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              break;
         case 0xa4:
              ROM_data[converted_position].description="";
+             error_message="Command A4";
              break;
         case 0xa5:
              ROM_data[converted_position].description="";
+             error_message="Command A5";
              break;
         case 0xa6:
              ROM_data[converted_position].description="EVENT: Execute New Event at Relative Script Position";
              break;
         case 0xa7:
              ROM_data[converted_position].description="EVENT: Delay Current Event";
+             temp_int=getSourceByte(position);
+             position++;
              break;
         case 0xa8:
              ROM_data[converted_position].description="";
+             error_message="Command A8";
              break;
         case 0xa9:
              ROM_data[converted_position].description="";
+             error_message="Command A9";
              break;
         case 0xaa:
              ROM_data[converted_position].description="EVENT: Clear Boy+Dog Statuses";
              break;
         case 0xab:
              ROM_data[converted_position].description="";
+             error_message="Command AB";
              break;
         case 0xac:
              ROM_data[converted_position].description="";
+             error_message="Command AC";
              break;
         case 0xad:
              ROM_data[converted_position].description="";
+             error_message="Command AD";
              break;
         case 0xae:
              ROM_data[converted_position].description="";
+             error_message="Command AE";
              break;
         case 0xaf:
              ROM_data[converted_position].description="";
+             error_message="Command AF";
              break;
         case 0xb0:
              ROM_data[converted_position].description="";
+             error_message="Command B0";
              break;
         case 0xb1:
              ROM_data[converted_position].description="";
+             error_message="Command B1";
              break;
         case 0xb2:
              ROM_data[converted_position].description="";
+             error_message="Command B2";
              break;
         case 0xb3:
              ROM_data[converted_position].description="";
+             error_message="Command B3";
              break;
         case 0xb4:
              ROM_data[converted_position].description="";
+             error_message="Command B4";
              break;
         case 0xb5:
              ROM_data[converted_position].description="";
+             error_message="Command B5";
              break;
         case 0xb6:
              ROM_data[converted_position].description="";
+             error_message="Command B6";
              break;
         case 0xb7:
              ROM_data[converted_position].description="";
+             error_message="Command B7";
              break;
         case 0xb9:
              ROM_data[converted_position].description="";
+             error_message="Command B9";
              break;
         case 0xba:
              ROM_data[converted_position].description="EVENT: Spawn Monster/NPC";
              break;
         case 0xbb:
              ROM_data[converted_position].description="";
+             error_message="Command BB";
              break;
         case 0xbc:
              ROM_data[converted_position].description="EVENT: Freeze Boy";
@@ -1389,11 +1618,12 @@ d_string script0CD0AF(const OPCODE_STEP &step)
              break;
         case 0xc2:
              ROM_data[converted_position].description="";
+             error_message="Command C2";
              break;
         default:
              ROM_data[converted_position].description="Script 0CD0AF, Command ";
              ROM_data[converted_position].description+=convertByteToHexString(ROM_data[converted_position].ROM_bytes);
              break;
      } //switch(ROM_bytes[position])
-     return message;
+     return converted_position;
 }
