@@ -822,7 +822,7 @@ uint32_t script0CD0AF(uint32_t converted_position)
         case 0x04:
              ROM_data[converted_position].description="EVENT: GOTO 0x";
              temp_int=getSourceWord(converted_position+1);
-             temp_int2=converted_position+temp_int+3;
+             temp_int2=(converted_position&0xff0000)+((temp_int+3+converted_position)&0xffff);
              temp_int2|=0x008000;
              ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
              if(temp_int2>file_size) break;
@@ -1043,7 +1043,7 @@ uint32_t script0CD0AF(uint32_t converted_position)
              error_message="Command 23";
              break;
         case 0x26:
-             ROM_data[converted_position].description="EVENT: Load Tile Map to VRAM";
+             ROM_data[converted_position].description="EVENT: Load Tile Map to VRAM, Fade-In Screen";
              //command has no operands.
              break;
         case 0x27:
@@ -1110,6 +1110,14 @@ uint32_t script0CD0AF(uint32_t converted_position)
              break;
         case 0x3c:
              ROM_data[converted_position].description="EVENT: Spawn Monster/NPC with Flags";
+             temp_int=getSourceWord(position); //NPC/Monster type
+             position+=2;
+             temp_int2=getSourceWord(position); //Flags for NPC bitfield x10
+             position+=2;
+             temp_int=getSourceByte(position);  //X position
+             position++;
+             temp_int=getSourceByte(position); //Y position
+             position++;
              break;
         case 0x3d:
              ROM_data[converted_position].description="EVENT: Set Monster/NPC Talk Event";
@@ -1225,44 +1233,68 @@ uint32_t script0CD0AF(uint32_t converted_position)
              ROM_data[converted_position].description="EVENT: Enable New Non-windowed Messages";
              break;
         case 0x5c:
-             ROM_data[converted_position].description="EVENT: Mark Room Treasure as Found";
+             ROM_data[converted_position].description="EVENT: Mark Room Treasure (SUB1) as Found (SUB2) times";
              //Doesn't award the ingredient/treasure itself, but keeps the dog from sniffing for it, and
              //changes array values in 107E,10CE, and 111E such that a "chest" sprite will show open.
              position=script0CEA5D(position);
              position=script0CEA5D(position);
              break;
         case 0x5d:
-             ROM_data[converted_position].description="EVENT: Set Room Treasure Event";
+             ROM_data[converted_position].description="EVENT: Set Room Treasure Event (SUB)";
              position=script0CEA5D(position);
              temp_int=getSourceWord(position);
              position+=2;
              break;
         case 0x5e:
-             ROM_data[converted_position].description="";
-             error_message="Command 5E";
+             ROM_data[converted_position].description="EVENT: Set/Clear Treasure (SUB) if 7E:";
+             position=script0CEA5D(position);
+             temp_int2=getSourceWord(position);
+             position+=2;
+             temp_int=temp_int2&0x7;
+             temp_int2>>=3;
+             temp_int2+=0x2258;
+             ROM_data[converted_position].description+=convertWordToHexString(temp_int2);
+             ROM_data[converted_position].description+=" Bit ";
+             ROM_data[converted_position].description+=convertToASCII(temp_int);
              break;
         case 0x5f:
-             ROM_data[converted_position].description="";
-             error_message="Command 5F";
+             ROM_data[converted_position].description="EVENT: Add 0x";
+             position=script0CEA5D(position);
+             temp_int=getSourceWord(position);
+             position+=2;
+             ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+             //This might be a minor glitch in Evermore.  They use a word operand but cut off the upper byte.
+             ROM_data[converted_position].description+=" to the amount of times Treasure (SUB) has been found";
              break;
         case 0x60:
-             ROM_data[converted_position].description="";
-             error_message="Command 60";
+             ROM_data[converted_position].description="EVENT: Add 1 to the amount of times Treasure (SUB) has been found";
+             position=script0CEA5D(position);
              break;
         case 0x61:
-             ROM_data[converted_position].description="";
-             error_message="Command 61";
+             ROM_data[converted_position].description="EVENT: Subtract 1 from the amount of times Treasure (SUB) has been found";
+             position=script0CEA5D(position);
              break;
         case 0x62:
              ROM_data[converted_position].description="";
+             //searches map arrangement data for something.
+             temp_int=getSourceByte(position);
+             position++;
+             temp_int=getSourceByte(position);
+             position+=2;
+             temp_int2=getSourceWord(position);
+             position+=2;
              error_message="Command 62";
              break;
         case 0x63:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Black-Out Screen Momentarily????";
+             //Updates a lot of graphics settings, uses data at 7F:C800
+             //Reload room graphics?
              error_message="Command 63";
              break;
         case 0x64:
              ROM_data[converted_position].description="";
+             //Causes some background graphics to appear and rise up on screen.  It's as if
+             //you are rising up on the windwalker/escape pod
              error_message="Command 64";
              break;
         case 0x65:
@@ -1300,7 +1332,7 @@ uint32_t script0CD0AF(uint32_t converted_position)
              position=script0CEA5D(position);
              break;
         case 0x6e:
-             ROM_data[converted_position].description="EVENT: Move Player/Monster/NPC to Absolute Position";
+             ROM_data[converted_position].description="EVENT: Move Player/Monster/NPC to Absolute Position. Ignore barriers.";
              position=script0CEA5D(position);
              temp_int=getSourceByte(position);
              position++;
@@ -1308,7 +1340,7 @@ uint32_t script0CD0AF(uint32_t converted_position)
              position++;
              break;
         case 0x6f:
-             ROM_data[converted_position].description="EVENT: Move Player/Monster/NPC to Relative Position";
+             ROM_data[converted_position].description="EVENT: Move Player/Monster/NPC to Relative Position. Ignore barriers.";
              position=script0CEA5D(position);
              position=script0CEA5D(position);
              position=script0CEA5D(position);
@@ -1322,12 +1354,10 @@ uint32_t script0CD0AF(uint32_t converted_position)
              position=script0CEA5D(position);
              break;
         case 0x73:
-             ROM_data[converted_position].description="";
+             ROM_data[converted_position].description="EVENT: Move Player/Monster/NPC (SUB1) to Absolute X(SUB2),Y(SUB3). Ignore barriers.";
              position=script0CEA5D(position);
              position=script0CEA5D(position);
              position=script0CEA5D(position);
-             //appears to involve moving an npc
-             error_message="Command 73";
              break;
         case 0x74:
              ROM_data[converted_position].description="EVENT: Turn (Sub-Script) Monster/NPC/Player Up";
@@ -1346,15 +1376,18 @@ uint32_t script0CD0AF(uint32_t converted_position)
              position=script0CEA5D(position);
              break;
         case 0x78:
-             ROM_data[converted_position].description="EVENT: Set (Sub-Script) Monster/NPC/Player Sprite/Animation Script";
+             ROM_data[converted_position].description="EVENT: Set (SUB1) Monster/NPC/Player Animation Script";
              position=script0CEA5D(position);
              temp_int=getSourceWord(position); //This is the index to the index to the animation.
              position+=2;
              position=script0CEA5D(position); //This determines how you set/clear monster/npc/player bitfield(s)
              break;
         case 0x79:
-             ROM_data[converted_position].description="";
-             error_message="Command 79";
+             ROM_data[converted_position].description="EVENT: Set (SUB1) Monster/NPC/Player Animation and Switch to Next Event";
+             position=script0CEA5D(position);
+             temp_int=getSourceWord(position); //This is the index to the index to the animation.
+             position+=2;
+             position=script0CEA5D(position); //This determines how you set/clear monster/npc/player bitfield(s)
              break;
         case 0x7a:
              ROM_data[converted_position].description="EVENT: Store WORD (SUB2) at address (SUB1)";
@@ -1383,12 +1416,16 @@ uint32_t script0CD0AF(uint32_t converted_position)
              ROM_data[converted_position].description+=" from Currency (Sub-Script)";
              break;
         case 0x7e:
-             ROM_data[converted_position].description="";
-             error_message="Command 7E";
+             ROM_data[converted_position].description="EVENT: Exchange Currency";
+             position=script0CEA5D(position); //currency multiplier?
+             position=script0CEA5D(position); //Old Currency Type
+             position=script0CEA5D(position); //currency divisor?
+             position=script0CEA5D(position); //New Currency Type
              break;
         case 0x7f:
-             ROM_data[converted_position].description="";
-             error_message="Command 7F";
+             ROM_data[converted_position].description="EVENT: Enter Dog's Name";
+             temp_int=getSourceWord(position); //????
+             position+=2;
              break;
         case 0x80:
              ROM_data[converted_position].description="EVENT: Display Stored non-windowed message";
@@ -1423,7 +1460,7 @@ uint32_t script0CD0AF(uint32_t converted_position)
              position=script0CEA5D(position);
              break;
         case 0x88:
-             ROM_data[converted_position].description="EVENT: Clear Ring Menu Item List";
+             ROM_data[converted_position].description="EVENT: Clear Ring Menu Item List and Exit";
              break;
         case 0x89:
              ROM_data[converted_position].description="EVENT: Set Item in Shopping Menu";
@@ -1431,55 +1468,78 @@ uint32_t script0CD0AF(uint32_t converted_position)
              position=script0CEA5D(position); //get Price
              break;
         case 0x8a:
-             ROM_data[converted_position].description="";
-             error_message="Command 8A";
+             ROM_data[converted_position].description="EVENT: Switch Current Shopping Menu to Monster/NPC/Player (SUB)";
+             position=script0CEA5D(position);
              break;
         case 0x8c:
              ROM_data[converted_position].description="EVENT: File Save Menu";
              break;
         case 0x8d:
-             ROM_data[converted_position].description="";
-             error_message="Command 8D";
+             ROM_data[converted_position].description="EVENT: Enable/Disable Earthquake";
+             temp_int=getSourceByte(position); //boolean to enable/disable
+             position++;
              break;
         case 0x8e:
-             ROM_data[converted_position].description="";
-             error_message="Command 8E";
+             ROM_data[converted_position].description="EVENT: Subtract SUB2 From Currency SUB1. If negative, GOTO 0x";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             temp_int2=getSourceWord(position);
+             position+=2;
+             temp_int2+=position;
+             temp_int2|=0x008000;
+             ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+             if(temp_int2>file_size) break;
+             ROM_data[temp_int2].addLabel(converted_position);
              break;
         case 0x8f:
-             ROM_data[converted_position].description="";
-             error_message="Command 8F";
+             ROM_data[converted_position].description="EVENT: Subtract SUB2 From Currency SUB1. If positive, GOTO 0x";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             temp_int2=getSourceWord(position);
+             position+=2;
+             temp_int2+=position;
+             temp_int2|=0x008000;
+             ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+             if(temp_int2>file_size) break;
+             ROM_data[temp_int2].addLabel(converted_position);
              break;
         case 0x90:
-             ROM_data[converted_position].description="";
-             error_message="Command 90";
+             ROM_data[converted_position].description="EVENT: Fade to Screen Brightness SUB";
+             //This command disables ring menus.
+             position=script0CEA5D(position);
              break;
         case 0x91:
-             ROM_data[converted_position].description="";
-             error_message="Command 91";
+             ROM_data[converted_position].description="EVENT: Set Screen Brightness to SUB";
+             //Unlike command 90, the effect is immediate.
+             position=script0CEA5D(position);
              break;
         case 0x92:
-             ROM_data[converted_position].description="";
-             error_message="Command 92";
+             ROM_data[converted_position].description="EVENT: Monster/Player/NPC SUB1 Takes SUB2 Damage, with animation";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x93:
-             ROM_data[converted_position].description="";
-             error_message="Command 93";
+             ROM_data[converted_position].description="EVENT: Monster/Player/NPC SUB1 Takes SUB2 Damage, no animation";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x94:
-             ROM_data[converted_position].description="";
-             error_message="Command 94";
+             ROM_data[converted_position].description="EVENT: Monster/Player/NPC SUB1 Heals by SUB2, with animation";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x95:
-             ROM_data[converted_position].description="EVENT: Restore Monster/NPC/Player Hit Points";
+             ROM_data[converted_position].description="EVENT: MONSTER/Player/NPC SUB1 Heals by SUB2, no animation";
              position=script0CEA5D(position);
              position=script0CEA5D(position);
              break;
         case 0x96:
-             ROM_data[converted_position].description="";
-             error_message="Command 96";
+             ROM_data[converted_position].description="EVENT: Teleport Player X-SUB,Y-SUB relative screens, and scroll";
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x97:
-             ROM_data[converted_position].description="EVENT: Set Screen Brightness";
+             ROM_data[converted_position].description="EVENT: Change Palettes/Time of Day";
              position=script0CEA5D(position);
              position=script0CEA5D(position);
              position=script0CEA5D(position);
@@ -1489,32 +1549,55 @@ uint32_t script0CD0AF(uint32_t converted_position)
              position=script0CEA5D(position);
              break;
         case 0x98:
-             ROM_data[converted_position].description="";
-             error_message="Command 98";
+             ROM_data[converted_position].description="EVENT: If SUB is not Active Player, Switch Active Player";
+             position=script0CEA5D(position); //monster/npc/player
              break;
         case 0x99:
-             ROM_data[converted_position].description="";
-             error_message="Command 99";
+             ROM_data[converted_position].description="EVENT: Enter Mode 7 Worldmap on Windwalker";
+             //one of these may control whether you fly the windwalker or escape pod
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x9a:
-             ROM_data[converted_position].description="";
-             error_message="Command 9A";
+             ROM_data[converted_position].description="EVENT: Change Font";
+             position=script0CEA5D(position);
+             //a valid SUB return value is 2. The others mostly ruin the font.
+             //This command seems very glitchy.
              break;
         case 0x9b:
              ROM_data[converted_position].description="EVENT: Deallocate/Destroy (Sub-Script) Monster/NPC";
              position=script0CEA5D(position);
              break;
         case 0x9c:
-             ROM_data[converted_position].description="";
-             error_message="Command 9C";
+             ROM_data[converted_position].description="EVENT: Decrement Events Tied to NPC/Monster/Player SUB";
+             //Decrements monster/npc/player byte x3E
+             //Doesn't delete or modify the actual events in any way...
+             position=script0CEA5D(position);
              break;
         case 0x9d:
-             ROM_data[converted_position].description="";
-             error_message="Command 9D";
+             ROM_data[converted_position].description="EVENT: Move Player/Monster/NPC (SUB1) to Absolute X(SUB2),Y(SUB3)";
+             //Tries to avoid obstacles, unlike command 73
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
+             position=script0CEA5D(position);
              break;
         case 0x9e:
-             ROM_data[converted_position].description="";
-             error_message="Command 9E";
+             ROM_data[converted_position].description="EVENT: Alchemy Attack";
+             //Continues to call SUB scripts until one returns zero, or possibly another condition...
+             //Stores the value of the SUB returns in an array at 7E:3364+0x2E. Increments
+             //the offset by 2 after every SUB result.
+             //Struct at 7E3364 is x40 bytes long. After 7E3564, struct length increases to x76.
+             position=script0CEA5D(position); //Get npc/monster/player target
+             position=script0CEA5D(position); //type of alchemy
+             position=script0CEA5D(position); //???? attack power?
+             while(ROM_data[converted_position-1].ROM_bytes!=0xB0) //This is a big question mark until I see this command used.
+             {
+                  position=script0CEA5D(position);
+             }
              break;
         case 0x9f:
              ROM_data[converted_position].description="EVENT: Prepare Currency Display";
@@ -1528,24 +1611,45 @@ uint32_t script0CD0AF(uint32_t converted_position)
              ROM_data[converted_position].description="EVENT: Hide Currency Display";
              break;
         case 0xa2:
-             ROM_data[converted_position].description="";
-             error_message="Command A2";
+             ROM_data[converted_position].description="EVENT: Spawn NPC/Monster with Flags";
+             //Just like command 3C but uses SUB's for X and Y position
+             temp_int=getSourceWord(position); //This is an NPC/Monster identifier, same as in command 3C
+             position+=2;
+             temp_int2=getSourceWord(position);
+             position+=2;
+             position=script0CEA5D(position); //X position
+             position=script0CEA5D(position); //Y position
              break;
         case 0xa3:
              ROM_data[converted_position].description="EVENT: Execute Common Event ";
-             temp_int=getSourceByte(converted_position+1);
+             temp_int=getSourceByte(position);
+             position++;
              ROM_data[converted_position].description+=convertByteToHexString(temp_int);
              break;
         case 0xa4:
-             ROM_data[converted_position].description="";
-             error_message="Command A4";
+             ROM_data[converted_position].description="EVENT: Execute Less Common Event ";
+             temp_int=getSourceWord(position);
+             position+=2;
+             ROM_data[converted_position].description+=convertWordToHexString(temp_int);
              break;
         case 0xa5:
-             ROM_data[converted_position].description="";
-             error_message="Command A5";
+             ROM_data[converted_position].description="EVENT: Execute New Event at 0x";
+             temp_int=getSourceByte(converted_position+1);
+             temp_int|=0xff00;
+             temp_int2=(converted_position&0xff0000) + ((converted_position+temp_int)&0xffff);
+             temp_int2|=0x008000;
+             ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+             if(temp_int2>file_size) break;
+             ROM_data[temp_int2].addLabel(converted_position);
              break;
         case 0xa6:
-             ROM_data[converted_position].description="EVENT: Execute New Event at Relative Script Position";
+             ROM_data[converted_position].description="EVENT: Execute New Event at 0x";
+             temp_int=getSourceWord(converted_position+1);
+             temp_int2=(converted_position&0xff0000)+((temp_int+converted_position)&0xffff);
+             temp_int2|=0x008000;
+             ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+             if(temp_int2>file_size) break;
+             ROM_data[temp_int2].addLabel(converted_position);
              break;
         case 0xa7:
              ROM_data[converted_position].description="EVENT: Delay Current Event by 0x";
@@ -1560,19 +1664,31 @@ uint32_t script0CD0AF(uint32_t converted_position)
              ROM_data[converted_position].description+=convertWordToHexString(temp_int);
              break;
         case 0xa9:
-             ROM_data[converted_position].description="";
-             error_message="Command A9";
+             ROM_data[converted_position].description="EVENT: Modify Monster/Player/NPC Bitfields or Direction";
+             position=script0CEA5D(position); //NPC pointer
+             position=script0CEA5D(position); //Indicates how to modify direction or a bitfield.  Many options.
              break;
         case 0xaa:
              ROM_data[converted_position].description="EVENT: Clear Boy+Dog Statuses";
              break;
         case 0xab:
-             ROM_data[converted_position].description="";
-             error_message="Command AB";
+             ROM_data[converted_position].description="EVENT: Reset Game";
              break;
         case 0xac:
-             ROM_data[converted_position].description="";
-             error_message="Command AC";
+             ROM_data[converted_position].description="EVENT: Alchemy Attack";
+             //This command is VERY similar to command 9E.  The entries in 7E3564 array are alchemy attacks
+             //just like those in the 7E3364 array.  They get more bytes though.  Possibly more scripting???
+             //Continues to call SUB scripts until one returns zero, or possibly another condition...
+             //Stores the value of the SUB returns in an array at 7E:3564+0x2E. Increments
+             //the offset by 2 after every SUB result.
+             //Struct at 7E3364 is x40 bytes long. After 7E3564, struct length increases to x76. This command targets the 3564 ones.
+             position=script0CEA5D(position); //Get npc/monster/player target
+             position=script0CEA5D(position); //type of alchemy
+             position=script0CEA5D(position); //???? attack power?
+             while(ROM_data[converted_position-1].ROM_bytes!=0xB0) //This is a big question mark until I see this command used.
+             {
+                  position=script0CEA5D(position);
+             }
              break;
         case 0xad:
              ROM_data[converted_position].description="7E:";
@@ -1607,20 +1723,69 @@ uint32_t script0CD0AF(uint32_t converted_position)
              ROM_data[converted_position].description+=convertByteToHexString(temp_int);
              break;
         case 0xaf:
-             ROM_data[converted_position].description="";
-             error_message="Command AF";
+             ROM_data[converted_position].description="EVENT: Execute new Event at 0x";
+             temp_int=getSourceByte(position);
+             position++;
+             for(temp_int2=0;temp_int2<temp_int;temp_int2++)
+             {
+                  position=script0CEA5D(position);
+             }
+             temp_int=getSourceWord(position);
+             position+=2;
+             temp_int2=getSourceByte(position);
+             position++;
+             temp_int2<<=1;
+             temp_int&0x8000 ? temp_int2+=0x93 : temp_int2+=0x92;
+             temp_int|=0x8000;
+             temp_int2=(temp_int2<<16) + temp_int;
+             temp_int=sources->convertPosition(temp_int2);
+             ROM_data[converted_position].description+=convert24BitToHexString(temp_int);
+             ROM_data[converted_position].description+=" and Fully Initialize";
+             if(temp_int>file_size) break;
+             ROM_data[temp_int].addLabel(converted_position);
              break;
         case 0xb0:
-             ROM_data[converted_position].description="";
-             error_message="Command B0";
+             ROM_data[converted_position].description="EVENT: Execute Common Event ";
+             temp_int=getSourceByte(position);
+             position++;
+             for(temp_int2=0;temp_int2<temp_int;temp_int2++)
+             {
+                  position=script0CEA5D(position);
+             }
+             temp_int=getSourceByte(position);
+             position++;
+             ROM_data[converted_position].description+=convertByteToHexString(temp_int);
+             ROM_data[converted_position].description+=" and Fully Initialize";
              break;
         case 0xb1:
-             ROM_data[converted_position].description="";
-             error_message="Command B1";
+             ROM_data[converted_position].description="EVENT: Execute Less Common Event ";
+             temp_int=getSourceByte(position);
+             position++;
+             for(temp_int2=0;temp_int2<temp_int;temp_int2++)
+             {
+                  position=script0CEA5D(position);
+             }
+             temp_int=getSourceWord(position);
+             position+=2;
+             ROM_data[converted_position].description+=convertWordToHexString(temp_int);
+             ROM_data[converted_position].description+=" and Fully Initialize";
              break;
         case 0xb2:
-             ROM_data[converted_position].description="";
-             error_message="Command B2";
+             ROM_data[converted_position].description="EVENT: Execute Event at 0x";
+             temp_int=getSourceByte(position);
+             position++;
+             for(temp_int2=0;temp_int2<temp_int;temp_int2++)
+             {
+                  position=script0CEA5D(position);
+             }
+             temp_int=getSourceByte(converted_position+1);
+             temp_int|=0xff00;
+             temp_int2=(converted_position&0xff0000) + ((converted_position+temp_int)&0xffff);
+             temp_int2|=0x008000;
+             ROM_data[converted_position].description+=convert24BitToHexString(temp_int2);
+             ROM_data[converted_position].description+=" and Fully Initialize";
+             if(temp_int2>file_size) break;
+             ROM_data[temp_int2].addLabel(converted_position);
              break;
         case 0xb3:
              ROM_data[converted_position].description="";
